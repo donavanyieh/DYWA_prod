@@ -1,0 +1,39 @@
+{
+  "schema_version": "1.0.0",
+  "event_id": "evt_group_buy_demo_001",
+  "run_id": "run_group_buy_demo_001",
+  "source": "persona_agent",
+  "source_id": "persona_gb_flow",
+  "event_type": "persona_action",
+  "status": "completed",
+  "timestamp": "2026-06-06T12:00:01Z",
+  "duration_ms": 840,
+  "summary": "Clicked the Group Buy button to start the group-buy checkout journey.",
+  "artifacts": [
+    {
+      "schema_version": "1.0.0",
+      "artifact_id": "art_group_buy_decision_001",
+      "type": "text_log",
+      "uri": "artifacts/run_group_buy_demo_001/personas/persona_gb_flow/decision_001.json",
+      "mime_type": "application/json",
+      "created_at": "2026-06-06T12:00:01Z",
+      "sha256": null,
+      "metadata": {
+        "kind": "persona_decision",
+        "model_name": "gpt-5"
+      }
+    }
+  ],
+  "payload": {
+    "model_decision": {
+      "action": "click_button",
+      "button_text": "Group Buy"
+    },
+    "observation_summary": "The shop page shows a Group Buy button.",
+    "consistency_checks": [
+      "The control is a visible button before clicking."
+    ],
+    "confidence": 0.92
+  },
+  "error": null
+}

@@ -1,6 +1,6 @@
 from fastapi.testclient import TestClient
 
-from app.main import CARTS, ORDERS, app
+from app.main import GROUP_BUYS, ORDERS, app
 
 
 def test_product_catalog_is_available() -> None:
@@ -14,34 +14,38 @@ def test_product_catalog_is_available() -> None:
     for product in products:
         assert product["id"]
         assert product["name"]
-        assert product["price"] > 0
+        assert product["normalPrice"] > 0
+        assert product["groupBuyPrice"] > 0
 
 
 def test_customer_can_add_a_catalog_item_to_cart() -> None:
-    CARTS.clear()
+    GROUP_BUYS.clear()
     ORDERS.clear()
     client = TestClient(app)
 
     product = client.get("/api/products").json()[0]
-    response = client.post(
-        "/api/cart/items",
-        json={"product_id": product["id"], "quantity": 1},
-    )
+    response = client.post("/api/orders", json={
+        "userId": "user_smoke",
+        "productId": product["id"],
+        "purchaseType": "NORMAL",
+        "quantity": 1,
+    })
 
     assert response.status_code == 200
-    cart = response.json()
-    assert cart["items"]
-    assert cart["items"][0]["product_id"] == product["id"]
-    assert cart["items"][0]["quantity"] == 1
-    assert isinstance(cart["total"], int | float)
+    order = response.json()
+    assert order["productId"] == product["id"]
+    assert order["quantity"] == 1
+    assert order["status"] == "CONFIRMED"
+    assert isinstance(order["finalPrice"], int | float)
 
 
 def test_checkout_rejects_empty_cart() -> None:
-    CARTS.clear()
+    GROUP_BUYS.clear()
     ORDERS.clear()
     client = TestClient(app)
 
-    response = client.post("/api/checkout")
+    response = client.get("/checkout")
 
-    assert response.status_code == 400
+    assert response.status_code == 200
+    assert "Checkout" in response.text
 

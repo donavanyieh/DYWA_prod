@@ -187,25 +187,24 @@ def reconcile_memory(
         findings.append(finding)
         existing_by_signature[signature] = finding
 
-    if seen_signatures:
-        for finding in findings:
-            if (
-                isinstance(finding, dict)
-                and finding.get("signature") not in seen_signatures
-                and finding.get("status") in {"open", "regressed"}
-            ):
-                finding["status"] = "resolved"
-        append_assessment_note(
-            memory,
-            run_id=run_id,
-            summary=f"Observed {len(seen_signatures)} finding(s); reconciled active prior findings.",
-        )
-    else:
-        append_assessment_note(
-            memory,
-            run_id=run_id,
-            summary="No bug report emitted; memory finding statuses unchanged.",
-        )
+    resolved_count = 0
+    for finding in findings:
+        if (
+            isinstance(finding, dict)
+            and finding.get("signature") not in seen_signatures
+            and finding.get("status") in {"open", "regressed"}
+        ):
+            finding["status"] = "resolved"
+            resolved_count += 1
+
+    append_assessment_note(
+        memory,
+        run_id=run_id,
+        summary=(
+            f"Observed {len(seen_signatures)} finding(s); "
+            f"marked {resolved_count} prior active finding(s) resolved."
+        ),
+    )
 
     memory["run_count"] = int(memory.get("run_count") or 0) + 1
     return memory
@@ -394,7 +393,7 @@ def ask_for_action(
 def execute_action(page: Page, action: dict[str, object]) -> str:
     action_name = str(action.get("action"))
     if action_name == "click_button":
-        button_text = str(action["button_text"])
+        button_text = str(action.get("button_text", ""))
         page.get_by_role("button", name=button_text).first.click(timeout=5000)
         return f"Clicked button '{button_text}'."
     if action_name == "fill_input":

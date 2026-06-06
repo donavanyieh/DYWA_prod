@@ -89,12 +89,13 @@ Then visit `http://127.0.0.1:8765`.
 
 The live run is controlled by [configs/run_config.json](/Users/donavanyieh/Documents/test/configs/run_config.json). Change this file when you change the demo app, port, persona goals, Stage 0 restore files, expected behavior sources, repo entrypoint, test command, or promotion target.
 
-The default config currently runs four personas:
+The default config currently runs five group-buy personas:
 
-- `persona_general_shopper`
-- `persona_price_auditor`
-- `persona_impatient_buyer`
-- `persona_edge_case_explorer`
+- `persona_gb_flow`
+- `persona_gb_price`
+- `persona_gb_contract`
+- `persona_gb_security`
+- `persona_gb_data_integrity`
 
 Add, remove, or edit personas under `personas`.
 
@@ -149,4 +150,6 @@ The current config uses port `8765`. If that port is busy, change these values t
 
 ## Current Demo Behavior
 
-The initial planted bug is in cart total calculation, but the runtime does not pass a cart-specific bug oracle to the agents. The live persona is expected to flag inconsistencies from observed UI state, and the verifier reviews the persona's evidence. Tests are a configurable safety gate; the fixing agent may add regression coverage dynamically when it patches a confirmed report.
+The Stage 0 seed includes a placeholder group-buy flow to be replaced by the real feature. The configured group-buy personas target its five-step journey: click `Group Buy`, reach checkout, click `Place Order`, reach confirmation, then return to the `Group Buy` page.
+
+The runtime does not pass a bug oracle to the agents. Live personas are expected to flag inconsistencies from observed UI state, and the verifier reviews the persona's evidence. Tests are a configurable safety gate; the fixing agent may add regression coverage dynamically when it patches a confirmed report.

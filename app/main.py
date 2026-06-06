@@ -120,7 +120,13 @@ class CreateOrderRequest(BaseModel):
     purchase_type: PurchaseType = Field(alias="purchaseType")
     group_buy_id: str | None = Field(default=None, alias="groupBuyId")
     start_group_buy: bool = Field(default=False, alias="startGroupBuy")
-    quantity: int = Field(default=1, ge=1, le=9)
+    quantity: int | str = Field(default=1)
+
+
+class CreateGroupBuyRequest(BaseModel):
+    product_id: str = Field(alias="productId")
+    user_id: str = Field(alias="userId", min_length=1)
+    quantity: int | str = Field(default=1)
 
 
 def now_utc() -> datetime:
@@ -133,6 +139,13 @@ def iso(dt: datetime) -> str:
 
 def deterministic_group_buy_id(product_id: str, creator_user_id: str) -> str:
     return f"{product_id}-{creator_user_id}"
+
+
+def buggy_quantity(value: int | str) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return 0
 
 
 def product_by_id(product_id: str) -> dict[str, object]:
@@ -244,9 +257,10 @@ def create_pending_group_buy_order(
     *,
     product: dict[str, object],
     user_id: str,
-    quantity: int,
+    quantity: int | str,
     group_buy_id: str,
 ) -> dict[str, object]:
+    quantity_value = buggy_quantity(quantity)
     unit_price = float(product["group_buy_price"])
     normal_price = float(product["normal_price"])
     order_id = f"ord_{uuid4().hex[:8]}"
@@ -257,9 +271,9 @@ def create_pending_group_buy_order(
         "group_buy_id": group_buy_id,
         "purchase_type": "GROUP_BUY",
         "unit_price": unit_price,
-        "quantity": quantity,
-        "discount_amount": round((normal_price - unit_price) * quantity, 2),
-        "final_price": round(unit_price * quantity, 2),
+        "quantity": quantity_value,
+        "discount_amount": round(normal_price - unit_price, 2),
+        "final_price": round(unit_price, 2),
         "status": "PENDING_GROUP_BUY",
         "created_at": now_utc(),
     }
@@ -270,14 +284,16 @@ def create_group_buy_for_creator(
     *,
     product: dict[str, object],
     creator_user_id: str,
+    quantity: int | str = 1,
 ) -> dict[str, object]:
     group_buy_id = deterministic_group_buy_id(str(product["id"]), creator_user_id)
     created_at = now_utc()
+    participant_copies = max(buggy_quantity(quantity), 1)
     GROUP_BUYS[group_buy_id] = {
         "id": group_buy_id,
         "product_id": product["id"],
         "creator_user_id": creator_user_id,
-        "participant_user_ids": [creator_user_id],
+        "participant_user_ids": [creator_user_id for _ in range(participant_copies)],
         "required_group_size": product["required_group_size"],
         "status": "PENDING",
         "created_at": created_at,
@@ -302,6 +318,24 @@ def get_group_buy(request: Request, group_buy_id: str) -> dict[str, object]:
     return public_group_buy(group_buy_by_id(group_buy_id), request)
 
 
+@app.post("/api/group-buys")
+def create_group_buy_before_checkout(request: Request, payload: CreateGroupBuyRequest) -> dict[str, object]:
+    product = product_by_id(payload.product_id)
+    group_buy_id = deterministic_group_buy_id(payload.product_id, payload.user_id)
+    existing = GROUP_BUYS.get(group_buy_id)
+    if existing:
+        status = refresh_group_buy_status(existing)
+        if status not in {"SUCCESS", "EXPIRED"}:
+            return public_group_buy(existing, request)
+    group_buy = create_group_buy_for_creator(
+        product=product,
+        creator_user_id=payload.user_id,
+        quantity=payload.quantity,
+    )
+    refresh_group_buy_status(group_buy)
+    return public_group_buy(group_buy, request)
+
+
 @app.post("/api/group-buys/{group_buy_id}/join")
 def join_group_buy(group_buy_id: str, payload: JoinGroupBuyRequest) -> dict[str, object]:
     group_buy = group_buy_by_id(group_buy_id)
@@ -319,8 +353,6 @@ def join_group_buy(group_buy_id: str, payload: JoinGroupBuyRequest) -> dict[str,
 def finalize_group_buy(request: Request, group_buy_id: str, payload: FinalizeGroupBuyRequest) -> dict[str, object]:
     group_buy = group_buy_by_id(group_buy_id)
     status = refresh_group_buy_status(group_buy)
-    if payload.user_id != group_buy["creator_user_id"]:
-        raise HTTPException(status_code=400, detail="ONLY_CREATOR_CAN_FINALIZE")
     if status == "SUCCESS":
         raise HTTPException(status_code=400, detail="GROUP_BUY_ALREADY_SUCCESS")
     if status == "EXPIRED":
@@ -333,9 +365,12 @@ def finalize_group_buy(request: Request, group_buy_id: str, payload: FinalizeGro
         raise HTTPException(status_code=400, detail="GROUP_BUY_SIZE_NOT_REACHED")
 
     group_buy["status"] = "SUCCESS"
-    for order_id in list(group_buy.get("order_ids", [])):
-        order = ORDERS.get(str(order_id))
-        if order and order["status"] == "PENDING_GROUP_BUY":
+    for order in ORDERS.values():
+        if (
+            order["purchase_type"] == "GROUP_BUY"
+            and order["product_id"] == group_buy["product_id"]
+            and order["status"] == "PENDING_GROUP_BUY"
+        ):
             order["status"] = "CONFIRMED"
     return public_group_buy(group_buy, request)
 
@@ -343,6 +378,7 @@ def finalize_group_buy(request: Request, group_buy_id: str, payload: FinalizeGro
 @app.post("/api/orders")
 def create_order(request: Request, payload: CreateOrderRequest) -> dict[str, object]:
     product = product_by_id(payload.product_id)
+    quantity = buggy_quantity(payload.quantity)
 
     if payload.purchase_type == "NORMAL":
         unit_price = float(product["normal_price"])
@@ -354,9 +390,9 @@ def create_order(request: Request, payload: CreateOrderRequest) -> dict[str, obj
             "group_buy_id": None,
             "purchase_type": "NORMAL",
             "unit_price": unit_price,
-            "quantity": payload.quantity,
+            "quantity": quantity,
             "discount_amount": 0.0,
-            "final_price": round(unit_price * payload.quantity, 2),
+            "final_price": round(unit_price * quantity, 2),
             "status": "CONFIRMED",
             "created_at": now_utc(),
         }
@@ -374,7 +410,11 @@ def create_order(request: Request, payload: CreateOrderRequest) -> dict[str, obj
                     "groupBuy": public_group_buy(existing, request),
                 }
 
-        group_buy = create_group_buy_for_creator(product=product, creator_user_id=payload.user_id)
+        group_buy = create_group_buy_for_creator(
+            product=product,
+            creator_user_id=payload.user_id,
+            quantity=payload.quantity,
+        )
         order = create_pending_group_buy_order(
             product=product,
             user_id=payload.user_id,
@@ -408,6 +448,8 @@ def create_order(request: Request, payload: CreateOrderRequest) -> dict[str, obj
         group_buy_id=payload.group_buy_id,
     )
     participants.append(payload.user_id)
+    for _ in range(max(quantity - 1, 0)):
+        participants.append(payload.user_id)
     group_buy["order_ids"].append(order["id"])  # type: ignore[union-attr]
     refresh_group_buy_status(group_buy)
     return public_order(order)
@@ -674,7 +716,7 @@ def index() -> str:
               </div>
               <div class="notice">Group-buy links are generated only after ${state.currentUser} completes checkout.</div>
               <div class="actions">
-                <button type="button" onclick="goCheckout('${product.id}', 'GROUP_BUY', '', true)" data-testid="start-group-buy-button">Group Buy</button>
+                <button type="button" onclick="startGroupBuyBeforeCheckout('${product.id}')" data-testid="start-group-buy-button">Group Buy</button>
                 <button class="secondary" type="button" onclick="goCheckout('${product.id}', 'NORMAL')">Buy Now</button>
                 <button class="ghost" type="button" onclick="navigate('/')">Back</button>
               </div>
@@ -683,12 +725,24 @@ def index() -> str:
         `);
       }
 
+      async function startGroupBuyBeforeCheckout(productId) {
+        try {
+          const groupBuy = await api("/api/group-buys", {
+            method: "POST",
+            body: JSON.stringify({ productId, userId: state.currentUser, quantity: 1 })
+          });
+          navigate(`/group-buy/${groupBuy.id}`);
+        } catch (error) {
+          showError(error.message);
+        }
+      }
+
       async function renderGroupBuy(groupBuyId) {
         const groupBuy = await api(`/api/group-buys/${groupBuyId}`);
         const product = groupBuy.product;
         const alreadyJoined = groupBuy.participants.includes(state.currentUser);
         const canJoin = !alreadyJoined && !["SUCCESS", "EXPIRED"].includes(groupBuy.status);
-        const canFinalize = groupBuy.creatorUserId === state.currentUser && groupBuy.status === "READY_TO_CHECKOUT";
+        const canFinalize = groupBuy.status === "READY_TO_CHECKOUT";
         page(`
           <section class="detail">
             <img class="detail-image" src="${product.imageUrl}" alt="${product.name}">
@@ -762,7 +816,7 @@ def index() -> str:
               <p class="muted">Mock delivery to 123 Demo Street, Singapore.</p>
               <div class="field">
                 <label>Quantity</label>
-                <input id="quantity" type="text" inputmode="numeric" pattern="[1-9][0-9]*" value="1" data-testid="quantity-input" oninput="sanitizeQuantity(); updateCheckoutSummary(${unitPrice}, ${discount})">
+                <input id="quantity" type="text" value="1" data-testid="quantity-input" oninput="updateCheckoutSummary(${unitPrice}, ${discount})">
               </div>
               <div class="actions">
                 <button type="button" onclick="placeOrder('${product.id}', '${purchaseType}', '${groupBuyId || ""}', ${startGroupBuy})" data-testid="place-order-button">Place Order</button>
@@ -781,37 +835,14 @@ def index() -> str:
         `);
       }
 
-      function sanitizeQuantity() {
-        const input = document.querySelector("#quantity");
-        input.value = input.value.replace(/[^0-9]/g, "").replace(/^0+/, "");
-      }
-
-      function getValidQuantity() {
-        const input = document.querySelector("#quantity");
-        sanitizeQuantity();
-        const quantity = Number(input.value);
-        if (!Number.isInteger(quantity) || quantity < 1) {
-          throw new Error("Quantity must be a positive whole number.");
-        }
-        return quantity;
-      }
-
       function updateCheckoutSummary(unitPrice, discount) {
-        let quantity = 1;
-        try {
-          quantity = getValidQuantity();
-        } catch (_error) {
-          document.querySelector("#discount").textContent = money.format(0);
-          document.querySelector("#payable").textContent = money.format(0);
-          return;
-        }
-        document.querySelector("#discount").textContent = money.format(discount * quantity);
-        document.querySelector("#payable").textContent = money.format(unitPrice * quantity);
+        document.querySelector("#discount").textContent = money.format(discount);
+        document.querySelector("#payable").textContent = money.format(unitPrice);
       }
 
       async function placeOrder(productId, purchaseType, groupBuyId, startGroupBuy) {
         try {
-          const quantity = getValidQuantity();
+          const quantity = document.querySelector("#quantity").value;
           const result = await api("/api/orders", {
             method: "POST",
             body: JSON.stringify({
