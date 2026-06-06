@@ -182,12 +182,21 @@ def refresh_group_buy_status(group_buy: dict[str, object]) -> GroupBuyStatus:
     return str(group_buy["status"])  # type: ignore[return-value]
 
 
+<<<<<<< HEAD
+def calculate_cart_total(cart: dict[str, int]) -> float:
+    total = 0.0
+    for product_id, quantity in cart.items():
+        product = product_by_id(product_id)
+        total += float(product["price"]) * quantity
+    return round(total, 2)
+=======
 def group_buy_by_id(group_buy_id: str) -> dict[str, object]:
     group_buy = GROUP_BUYS.get(group_buy_id)
     if not group_buy:
         raise HTTPException(status_code=404, detail="Group buy not found")
     refresh_group_buy_status(group_buy)
     return group_buy
+>>>>>>> origin/main
 
 
 def public_product(product: dict[str, object]) -> dict[str, object]:
@@ -483,7 +492,11 @@ def index() -> str:
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+<<<<<<< HEAD
+    <title>Demo Shop</title>
+=======
     <title>BuyTogether Demo</title>
+>>>>>>> origin/main
     <style>
       :root {
         color-scheme: light;
@@ -585,6 +598,33 @@ def index() -> str:
         .stats { grid-template-columns: 1fr; }
         .share-box { grid-template-columns: 1fr; }
       }
+<<<<<<< HEAD
+      button.secondary { background: #335c67; }
+      input { border: 1px solid #b8c0cc; border-radius: 6px; padding: 8px; width: 64px; }
+      .muted { color: #667085; }
+      .total { font-size: 1.35rem; font-weight: 800; }
+      @media (max-width: 760px) { .layout { grid-template-columns: 1fr; } }
+    </style>
+  </head>
+  <body>
+    <header><strong>Demo Shop</strong></header>
+    <main>
+      <div class="layout">
+        <section>
+          <h1>Products</h1>
+          <div id="products" class="products"></div>
+        </section>
+        <aside>
+          <h2>Cart</h2>
+          <div id="cart" class="cart-panel"></div>
+          <p><button id="checkout" class="secondary" type="button" disabled>Checkout</button></p>
+          <div id="order" class="order-panel muted">No order yet.</div>
+        </aside>
+      </div>
+    </main>
+    <script>
+      const money = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
+=======
     </style>
   </head>
   <body>
@@ -628,6 +668,7 @@ def index() -> str:
         history.pushState({}, "", path);
         renderRoute();
       }
+>>>>>>> origin/main
 
       async function api(path, options = {}) {
         const response = await fetch(path, {
@@ -639,6 +680,77 @@ def index() -> str:
         return data;
       }
 
+<<<<<<< HEAD
+      async function loadProducts() {
+        const products = await api("/api/products");
+        document.querySelector("#products").innerHTML = products.map(product => `
+          <article class="product">
+            <h2>${product.name}</h2>
+            <p class="muted">${product.category}</p>
+            <p><strong>${money.format(product.price)}</strong></p>
+            <button type="button" onclick="addToCart('${product.id}')">Add to cart</button>
+          </article>
+        `).join("");
+      }
+
+      async function loadCart() {
+        const cart = await api("/api/cart");
+        const checkoutBtn = document.querySelector("#checkout");
+        if (!cart.items.length) {
+          document.querySelector("#cart").innerHTML = "<p class='muted'>Your cart is empty.</p>";
+          checkoutBtn.disabled = true;
+          return;
+        }
+        checkoutBtn.disabled = false;
+        document.querySelector("#cart").innerHTML = `
+          ${cart.items.map(item => `
+            <div>
+              <strong>${item.name}</strong>
+              <p class="muted">Unit ${money.format(item.unit_price)} | Subtotal ${money.format(item.subtotal)}</p>
+              <label>
+                Quantity
+                <input type="number" min="0" max="99" value="${item.quantity}"
+                  onchange="updateQuantity('${item.product_id}', this.value)">
+              </label>
+            </div>
+          `).join("<hr>")}
+          <p class="total">Total: ${money.format(cart.total)}</p>
+        `;
+      }
+
+      async function addToCart(productId) {
+        await api("/api/cart/items", {
+          method: "POST",
+          body: JSON.stringify({ product_id: productId, quantity: 1 })
+        });
+        await loadCart();
+      }
+
+      async function updateQuantity(productId, quantity) {
+        await api(`/api/cart/items/${productId}`, {
+          method: "PATCH",
+          body: JSON.stringify({ quantity: Number(quantity) })
+        });
+        await loadCart();
+      }
+
+      async function checkout() {
+        // Guard on client: prevent checkout if the cart is empty
+        const currentCart = await api("/api/cart");
+        if (!currentCart.items.length) {
+          document.querySelector("#order").innerHTML = "<em>Please add items to your cart before checkout.</em>";
+          return;
+        }
+        const order = await api("/api/checkout", { method: "POST" });
+        document.querySelector("#order").innerHTML =
+          `<strong>Order ${order.order_id}</strong><p>Total charged: ${money.format(order.total)}</p>`;
+        await loadCart();
+      }
+
+      document.querySelector("#checkout").addEventListener("click", checkout);
+      loadProducts();
+      loadCart();
+=======
       function page(content) {
         app.innerHTML = `<main>${content}</main>`;
       }
@@ -900,7 +1012,81 @@ def index() -> str:
       }
 
       renderRoute();
+>>>>>>> origin/main
     </script>
   </body>
 </html>
 """
+<<<<<<< HEAD
+
+
+@app.get("/api/products")
+def list_products() -> list[dict[str, object]]:
+    return PRODUCTS
+
+
+@app.get("/api/cart")
+def get_cart(
+    response: Response,
+    session_id: Annotated[str | None, Cookie(alias="session_id")] = None,
+) -> dict[str, object]:
+    current_session = get_or_create_session_id(response, session_id)
+    return cart_payload(session_cart(current_session))
+
+
+@app.post("/api/cart/items")
+def add_cart_item(
+    request: AddCartItemRequest,
+    response: Response,
+    session_id: Annotated[str | None, Cookie(alias="session_id")] = None,
+) -> dict[str, object]:
+    product_by_id(request.product_id)
+    current_session = get_or_create_session_id(response, session_id)
+    cart = session_cart(current_session)
+    cart[request.product_id] = cart.get(request.product_id, 0) + request.quantity
+    return cart_payload(cart)
+
+
+@app.patch("/api/cart/items/{product_id}")
+def update_cart_item(
+    product_id: str,
+    request: UpdateCartItemRequest,
+    response: Response,
+    session_id: Annotated[str | None, Cookie(alias="session_id")] = None,
+) -> dict[str, object]:
+    product_by_id(product_id)
+    current_session = get_or_create_session_id(response, session_id)
+    cart = session_cart(current_session)
+    if request.quantity == 0:
+        cart.pop(product_id, None)
+    else:
+        cart[product_id] = request.quantity
+    return cart_payload(cart)
+
+
+@app.post("/api/checkout")
+def checkout(
+    response: Response,
+    session_id: Annotated[str | None, Cookie(alias="session_id")] = None,
+) -> dict[str, object]:
+    current_session = get_or_create_session_id(response, session_id)
+    cart = session_cart(current_session)
+    if not cart:
+        raise HTTPException(status_code=400, detail="Cart is empty")
+    order = {
+        "order_id": f"ord_{uuid4().hex[:8]}",
+        "items": cart_payload(cart)["items"],
+        "total": calculate_cart_total(cart),
+    }
+    ORDERS.append(order)
+    CARTS[current_session] = {}
+    return order
+
+
+@app.post("/admin/reset")
+def reset_state() -> dict[str, object]:
+    CARTS.clear()
+    ORDERS.clear()
+    return {"status": "completed", "restored": ["in_memory_cart", "orders"]}
+=======
+>>>>>>> origin/main
