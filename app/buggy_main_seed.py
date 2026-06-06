@@ -33,6 +33,7 @@ PRODUCTS = [
 
 CARTS: dict[str, dict[str, int]] = {}
 ORDERS: list[dict[str, object]] = []
+GROUP_BUY_ORDERS: list[dict[str, object]] = []
 
 
 class AddCartItemRequest(BaseModel):
@@ -130,6 +131,7 @@ def index() -> str:
           <h2>Cart</h2>
           <div id="cart" class="cart-panel"></div>
           <p><button id="checkout" class="secondary" type="button">Checkout</button></p>
+          <p><button id="group-buy" type="button" onclick="location.href='/group-buy/checkout'">Group Buy</button></p>
           <div id="order" class="order-panel muted">No order yet.</div>
         </aside>
       </div>
@@ -212,6 +214,48 @@ def index() -> str:
 """
 
 
+# -- PLACEHOLDER group-buy flow -- REPLACE with the real feature --------------
+# Journey: Click "Group Buy" -> Checkout -> "Place Order" -> Confirmation -> Group Buy
+# Controls are <button> elements (role=button) so the persona runner can click them;
+# each navigates to a real URL so the lifecycle is observable.
+def _gb_page(title: str, body: str) -> str:
+    return f"""<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1"><title>{title}</title>
+<style> body {{ font-family: Arial, sans-serif; background:#f6f8fb; color:#18202a; margin:0; }}
+ header {{ background:#0f766e; color:#fff; padding:18px 24px; }}
+ main {{ max-width:720px; margin:0 auto; padding:24px; }}
+ .panel {{ background:#fff; border:1px solid #d8dee8; border-radius:8px; padding:16px; }}
+ button {{ border:0; border-radius:8px; background:#0f766e; color:#fff; cursor:pointer;
+           font-weight:700; padding:10px 14px; }}</style></head>
+<body><header><strong>Demo Shop - Group Buy (placeholder)</strong></header>
+<main><div class="panel"><h1>{title}</h1>{body}</div></main></body></html>"""
+
+
+@app.get("/group-buy/checkout", response_class=HTMLResponse)
+def group_buy_checkout() -> str:  # Checkout Page (reached by clicking "Group Buy")
+    return _gb_page("Group Buy Checkout", """
+    <p>Group-buy checkout (placeholder).</p><p><strong>Total: $12.50</strong></p>
+    <form method="post" action="/group-buy/place-order">
+      <button type="submit">Place Order</button></form>""")
+
+
+@app.post("/group-buy/place-order", response_class=HTMLResponse)
+def group_buy_place_order() -> str:  # Order Confirmation Page
+    order_id = f"gb_{uuid4().hex[:8]}"
+    GROUP_BUY_ORDERS.append({"order_id": order_id, "status": "PENDING"})
+    return _gb_page("Order Confirmation", f"""
+    <p>Order <strong>{order_id}</strong> confirmed (placeholder).</p>
+    <button type="button" onclick="location.href='/group-buy'">Group Buy</button>""")
+
+
+@app.get("/group-buy", response_class=HTMLResponse)
+def group_buy_page() -> str:  # Group Buy Page
+    return _gb_page("Group Buy", f"""
+    <p>Group-buy status (placeholder).</p><p>Participants: {len(GROUP_BUY_ORDERS)}</p>
+    <button type="button" onclick="location.href='/group-buy/checkout'">Checkout</button>""")
+# -- end PLACEHOLDER ---------------------------------------------------------
+
+
 @app.get("/api/products")
 def list_products() -> list[dict[str, object]]:
     return PRODUCTS
@@ -279,5 +323,6 @@ def checkout(
 def reset_state() -> dict[str, object]:
     CARTS.clear()
     ORDERS.clear()
-    return {"status": "completed", "restored": ["in_memory_cart", "orders"]}
+    GROUP_BUY_ORDERS.clear()
+    return {"status": "completed", "restored": ["in_memory_cart", "orders", "group_buy_orders"]}
 

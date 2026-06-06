@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
+import re
 import time
 from pathlib import Path
+from typing import Any
 from uuid import uuid4
 
 from playwright.sync_api import Page, sync_playwright
@@ -22,6 +25,196 @@ from shared.contracts.models import (
 from shared.io import append_jsonl, read_json, write_json
 from shared.logging import log
 from shared.time import utc_now
+
+
+ROOT = Path(__file__).resolve().parents[2]
+MEMORY_DIR = ROOT / "memory" / "personas"
+MEMORY_NOTE_LIMIT = 20
+MEMORY_STATUSES = {"open", "resolved", "regressed"}
+
+
+def persona_memory_path(persona_id: str) -> Path:
+    safe_persona_id = re.sub(r"[^A-Za-z0-9_.-]", "_", persona_id)
+    return MEMORY_DIR / f"{safe_persona_id}.json"
+
+
+def empty_memory(persona_id: str) -> dict[str, Any]:
+    return {
+        "persona_id": persona_id,
+        "run_count": 0,
+        "known_findings": [],
+        "assessment_notes": [],
+    }
+
+
+def normalize_memory(data: dict[str, Any], persona_id: str) -> dict[str, Any]:
+    memory = empty_memory(persona_id)
+    memory["run_count"] = int(data.get("run_count") or 0)
+
+    findings = []
+    for item in data.get("known_findings", []):
+        if not isinstance(item, dict) or not item.get("signature"):
+            continue
+        status = str(item.get("status") or "open")
+        findings.append(
+            {
+                "signature": str(item["signature"]),
+                "summary": str(item.get("summary") or ""),
+                "severity": str(item.get("severity") or "medium"),
+                "first_seen": str(item.get("first_seen") or ""),
+                "last_seen": str(item.get("last_seen") or ""),
+                "status": status if status in MEMORY_STATUSES else "open",
+            }
+        )
+    memory["known_findings"] = findings
+
+    notes = data.get("assessment_notes", [])
+    if isinstance(notes, list):
+        memory["assessment_notes"] = notes[-MEMORY_NOTE_LIMIT:]
+    return memory
+
+
+def load_memory(persona_id: str, *, fresh: bool = False) -> dict[str, Any]:
+    path = persona_memory_path(persona_id)
+    if fresh or not path.exists():
+        return empty_memory(persona_id)
+    return normalize_memory(read_json(path), persona_id)
+
+
+def summarize_memory(memory: dict[str, Any]) -> str:
+    findings = memory.get("known_findings", [])
+    notes = memory.get("assessment_notes", [])
+    lines = [
+        "MEMORY - prior runs",
+        "Use prior findings as hypotheses: confirm which still hold, flag ones now fixed "
+        "(resolved) or returned (regressed), add only genuinely new findings - do not "
+        "blindly repeat.",
+        f"Prior run count: {memory.get('run_count', 0)}.",
+    ]
+    if findings:
+        lines.append("Known findings:")
+        for finding in findings[-12:]:
+            lines.append(
+                "- "
+                f"[{finding.get('status')}] {finding.get('severity')} "
+                f"{finding.get('signature')}: {finding.get('summary')} "
+                f"(last seen: {finding.get('last_seen') or 'unknown'})"
+            )
+    else:
+        lines.append("Known findings: none recorded.")
+
+    if notes:
+        lines.append("Recent assessment notes:")
+        for note in notes[-3:]:
+            if isinstance(note, dict):
+                lines.append(f"- {note.get('summary', '')}")
+            else:
+                lines.append(f"- {note}")
+    return "\n".join(lines)
+
+
+def normalize_text_for_signature(text: str) -> str:
+    normalized = text.casefold()
+    normalized = re.sub(r"\b(?:bugrep|ord|gb|sess|evt|art)_[a-f0-9]+\b", "<id>", normalized)
+    normalized = re.sub(r"\b[0-9a-f]{8,}\b", "<hex>", normalized)
+    normalized = re.sub(r"\s+", " ", normalized)
+    return normalized.strip()
+
+
+def bug_signature(report: BugReportV1) -> str:
+    material = "\n".join(
+        [
+            report.title,
+            report.observed_behavior,
+            report.expected_behavior,
+            *report.reproduction_steps,
+        ]
+    )
+    digest = hashlib.sha256(normalize_text_for_signature(material).encode("utf-8")).hexdigest()
+    return f"bug_{digest[:16]}"
+
+
+def report_summary(report: BugReportV1) -> str:
+    return report.title or report.observed_behavior[:140]
+
+
+def append_assessment_note(memory: dict[str, Any], *, run_id: str, summary: str) -> None:
+    notes = memory.get("assessment_notes", [])
+    if not isinstance(notes, list):
+        notes = []
+    notes.append({"run_id": run_id, "created_at": utc_now(), "summary": summary})
+    memory["assessment_notes"] = notes[-MEMORY_NOTE_LIMIT:]
+
+
+def reconcile_memory(
+    memory: dict[str, Any],
+    *,
+    run_id: str,
+    emitted_reports: list[BugReportV1],
+) -> dict[str, Any]:
+    now = utc_now()
+    findings = memory.setdefault("known_findings", [])
+    existing_by_signature = {
+        str(finding["signature"]): finding
+        for finding in findings
+        if isinstance(finding, dict) and finding.get("signature")
+    }
+    seen_signatures: set[str] = set()
+
+    for report in emitted_reports:
+        signature = bug_signature(report)
+        seen_signatures.add(signature)
+        severity = str(getattr(report.severity_guess, "value", report.severity_guess))
+        existing = existing_by_signature.get(signature)
+        if existing:
+            existing["summary"] = report_summary(report)
+            existing["severity"] = severity
+            existing["last_seen"] = now
+            if existing.get("status") == "resolved":
+                existing["status"] = "regressed"
+            elif existing.get("status") not in MEMORY_STATUSES:
+                existing["status"] = "open"
+            continue
+
+        finding = {
+            "signature": signature,
+            "summary": report_summary(report),
+            "severity": severity,
+            "first_seen": now,
+            "last_seen": now,
+            "status": "open",
+        }
+        findings.append(finding)
+        existing_by_signature[signature] = finding
+
+    if seen_signatures:
+        for finding in findings:
+            if (
+                isinstance(finding, dict)
+                and finding.get("signature") not in seen_signatures
+                and finding.get("status") in {"open", "regressed"}
+            ):
+                finding["status"] = "resolved"
+        append_assessment_note(
+            memory,
+            run_id=run_id,
+            summary=f"Observed {len(seen_signatures)} finding(s); reconciled active prior findings.",
+        )
+    else:
+        append_assessment_note(
+            memory,
+            run_id=run_id,
+            summary="No bug report emitted; memory finding statuses unchanged.",
+        )
+
+    memory["run_count"] = int(memory.get("run_count") or 0) + 1
+    return memory
+
+
+def save_memory(memory: dict[str, Any]) -> Path:
+    path = persona_memory_path(str(memory["persona_id"]))
+    write_json(path, memory)
+    return path
 
 
 def describe_page(page: Page) -> dict[str, object]:
@@ -142,8 +335,9 @@ def ask_for_action(
     page_state: dict[str, object],
     screenshot: ArtifactRefV1,
     history: list[str],
+    memory: dict[str, Any] | None,
 ) -> dict[str, object]:
-    instructions = (
+    instructions_parts = [
         "You are an autonomous ecommerce user persona. Choose the next browser action "
         "from the available controls. Do not assume planted bugs. Your main job is to "
         "notice inconsistencies a real user could observe: contradictions between an "
@@ -152,7 +346,10 @@ def ask_for_action(
         "the page state. Report a bug only from observed evidence. Return finish when "
         "your goal is reached, when no useful next action remains, or when the goal is "
         "impossible from the current state. Return JSON only."
-    )
+    ]
+    if memory is not None:
+        instructions_parts.append(summarize_memory(memory))
+    instructions = "\n\n".join(instructions_parts)
     prompt = json.dumps(
         {
             "persona": {
@@ -248,10 +445,23 @@ def bug_report_from_action(
     )
 
 
-def run_persona(config: PersonaConfigV1) -> dict[str, object]:
+def run_persona(
+    config: PersonaConfigV1,
+    *,
+    memory_enabled: bool = True,
+    fresh_memory: bool = False,
+) -> dict[str, object]:
     artifact_dir = Path(config.artifact_dir)
     transcript_path = artifact_dir / "transcript.jsonl"
     bug_report_path = artifact_dir / "bug_report.json"
+    memory = load_memory(config.persona_id, fresh=fresh_memory) if memory_enabled else None
+    emitted_reports: list[BugReportV1] = []
+    if memory_enabled:
+        log(
+            f"Persona {config.persona_id}: memory loaded from "
+            f"{persona_memory_path(config.persona_id)} "
+            f"(fresh={fresh_memory}, run_count={memory.get('run_count', 0)})."
+        )
     log(
         f"Persona {config.persona_id}: initializing browser and model "
         f"{config.model.model_name}."
@@ -297,6 +507,7 @@ def run_persona(config: PersonaConfigV1) -> dict[str, object]:
                 page_state=page_state,
                 screenshot=screenshot,
                 history=history,
+                memory=memory,
             )
             log(
                 f"Persona {config.persona_id}: model chose "
@@ -346,6 +557,11 @@ def run_persona(config: PersonaConfigV1) -> dict[str, object]:
                     artifacts=[screenshot, decision],
                 )
                 write_json(bug_report_path, bug_report)
+                emitted_reports.append(bug_report)
+                if memory is not None:
+                    reconcile_memory(memory, run_id=config.run_id, emitted_reports=emitted_reports)
+                    memory_path = save_memory(memory)
+                    log(f"Persona {config.persona_id}: memory saved to {memory_path}.")
                 log(f"Persona {config.persona_id}: bug report written to {bug_report_path}.")
                 browser.close()
                 return {
@@ -361,6 +577,10 @@ def run_persona(config: PersonaConfigV1) -> dict[str, object]:
 
         browser.close()
 
+    if memory is not None:
+        reconcile_memory(memory, run_id=config.run_id, emitted_reports=emitted_reports)
+        memory_path = save_memory(memory)
+        log(f"Persona {config.persona_id}: memory saved to {memory_path}.")
     log(f"Persona {config.persona_id}: no bug report emitted.")
     return {"transcript_path": str(transcript_path), "bug_report_path": None}
 
@@ -368,10 +588,16 @@ def run_persona(config: PersonaConfigV1) -> dict[str, object]:
 def main() -> int:
     parser = argparse.ArgumentParser(description="Run a live model-backed persona agent.")
     parser.add_argument("--config", type=Path, required=True)
+    parser.add_argument("--no-memory", action="store_true", help="Disable persona memory load/save.")
+    parser.add_argument("--fresh", action="store_true", help="Start from empty memory for this run.")
     args = parser.parse_args()
 
     config = PersonaConfigV1.model_validate(read_json(args.config))
-    result = run_persona(config)
+    result = run_persona(
+        config,
+        memory_enabled=not args.no_memory,
+        fresh_memory=args.fresh,
+    )
     print(json.dumps(result, indent=2))
     return 0
 
