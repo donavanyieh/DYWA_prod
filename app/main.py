@@ -752,7 +752,8 @@ def index() -> str:
         const startGroupBuy = params.get("startGroupBuy") === "true";
         if (!productId) return showError("Checkout requires a product.");
         const product = await api(`/api/products/${productId}`);
-        const unitPrice = purchaseType === "GROUP_BUY" ? product.groupBuyPrice : product.normalPrice;
+        const displayUnitPrice = product.normalPrice;
+        const payableUnitPrice = purchaseType === "GROUP_BUY" ? product.groupBuyPrice : product.normalPrice;
         const discount = purchaseType === "GROUP_BUY" ? product.normalPrice - product.groupBuyPrice : 0;
         const title = startGroupBuy ? "Start Group Buy Checkout" : purchaseType === "GROUP_BUY" ? "Join Group Buy Checkout" : "Checkout";
         page(`
@@ -762,7 +763,7 @@ def index() -> str:
               <p class="muted">Mock delivery to 123 Demo Street, Singapore.</p>
               <div class="field">
                 <label>Quantity</label>
-                <input id="quantity" type="text" inputmode="numeric" pattern="[1-9][0-9]*" value="1" data-testid="quantity-input" oninput="sanitizeQuantity(); updateCheckoutSummary(${unitPrice}, ${discount})">
+                <input id="quantity" type="text" inputmode="numeric" pattern="[1-9][0-9]*" value="1" data-testid="quantity-input" oninput="sanitizeQuantity(); updateCheckoutSummary(${payableUnitPrice}, ${discount})">
               </div>
               <div class="actions">
                 <button type="button" onclick="placeOrder('${product.id}', '${purchaseType}', '${groupBuyId || ""}', ${startGroupBuy})" data-testid="place-order-button">Place Order</button>
@@ -773,9 +774,9 @@ def index() -> str:
               <h2>Order Summary</h2>
               <div class="summary-row"><span>Product</span><strong>${product.name}</strong></div>
               <div class="summary-row"><span>Purchase type</span><strong data-testid="purchase-type">${purchaseType}</strong></div>
-              <div class="summary-row"><span>Unit price</span><strong>${money.format(unitPrice)}</strong></div>
+              <div class="summary-row"><span>Unit price</span><strong>${money.format(displayUnitPrice)}</strong></div>
               <div class="summary-row"><span>Discount</span><strong id="discount">${money.format(discount)}</strong></div>
-              <div class="summary-row total"><span>Payable</span><span id="payable" data-testid="final-payable">${money.format(unitPrice)}</span></div>
+              <div class="summary-row total"><span>Payable</span><span id="payable" data-testid="final-payable">${money.format(payableUnitPrice)}</span></div>
             </article>
           </section>
         `);
@@ -796,7 +797,7 @@ def index() -> str:
         return quantity;
       }
 
-      function updateCheckoutSummary(unitPrice, discount) {
+      function updateCheckoutSummary(payableUnitPrice, discount) {
         let quantity = 1;
         try {
           quantity = getValidQuantity();
@@ -806,7 +807,7 @@ def index() -> str:
           return;
         }
         document.querySelector("#discount").textContent = money.format(discount * quantity);
-        document.querySelector("#payable").textContent = money.format(unitPrice * quantity);
+        document.querySelector("#payable").textContent = money.format(payableUnitPrice * quantity);
       }
 
       async function placeOrder(productId, purchaseType, groupBuyId, startGroupBuy) {
