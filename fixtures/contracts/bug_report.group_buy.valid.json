@@ -1,0 +1,46 @@
+{
+  "schema_version": "1.0.0",
+  "report_id": "bugrep_group_buy_demo_001",
+  "run_id": "run_group_buy_demo_001",
+  "persona_id": "persona_gb_flow",
+  "created_at": "2026-06-06T12:02:00Z",
+  "title": "Group-buy confirmation did not link back to the group-buy page",
+  "severity_guess": "medium",
+  "confidence": 0.82,
+  "observed_behavior": "After placing a group-buy order, the confirmation screen did not provide a visible Group Buy button back to the group-buy page.",
+  "expected_behavior": "The group-buy journey should continue from confirmation to the Group Buy page through a visible button.",
+  "reproduction_steps": [
+    "Open the shop.",
+    "Click the Group Buy button.",
+    "Click Place Order on the checkout page.",
+    "Inspect the order confirmation page.",
+    "Look for a Group Buy button that returns to the group-buy page."
+  ],
+  "evidence": {
+    "transcript_event_ids": [
+      "evt_group_buy_demo_001"
+    ],
+    "artifacts": [
+      {
+        "schema_version": "1.0.0",
+        "artifact_id": "art_group_buy_screen_001",
+        "type": "screenshot",
+        "uri": "artifacts/run_group_buy_demo_001/personas/persona_gb_flow/screen_001.png",
+        "mime_type": "image/png",
+        "created_at": "2026-06-06T12:01:58Z",
+        "sha256": null,
+        "metadata": {
+          "viewport": "1440x900"
+        }
+      }
+    ]
+  },
+  "environment": {
+    "app_base_url": "http://127.0.0.1:8765",
+    "browser": "chromium",
+    "viewport": "1440x900"
+  },
+  "metadata": {
+    "flow": "group-buy-placeholder"
+  }
+}

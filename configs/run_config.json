@@ -27,8 +27,8 @@
   },
   "personas": [
     {
-      "persona_id": "persona_general_shopper",
-      "goal": "Explore the shopping site as a real customer and flag any inconsistencies between actions, displayed state, prices, totals, messages, or checkout outcomes.",
+      "persona_id": "persona_gb_flow",
+      "goal": "Walk the group-buy lifecycle in order: click the Group Buy button, reach the Checkout page, Place Order, reach the Order Confirmation page, then open the Group Buy page. Flag anything that interrupts or misrepresents this journey, especially broken transitions between steps. Group buy may be a placeholder; report only observed inconsistencies and never assume planted bugs.",
       "traits": {
         "patience": "medium",
         "attention_to_detail": "high",
@@ -46,14 +46,14 @@
       },
       "model": {
         "provider": "openai",
-        "model_name": "gpt-5",
+        "model_name": "gpt-4o-mini",
         "mode": "live",
-        "reasoning_effort": "medium"
+        "reasoning_effort": null
       }
     },
     {
-      "persona_id": "persona_price_auditor",
-      "goal": "Shop carefully while checking whether product prices, quantities, subtotals, discounts, cart totals, and checkout totals stay internally consistent.",
+      "persona_id": "persona_gb_price",
+      "goal": "Move through the group-buy checkout (Group Buy -> Checkout -> Place Order -> Confirmation) auditing pricing math: unit prices, discounts, quantities, payable totals, and the confirmation screen. Flag any internal inconsistency between displayed numbers. Report only observed evidence.",
       "traits": {
         "patience": "high",
         "attention_to_detail": "very_high",
@@ -71,22 +71,22 @@
       },
       "model": {
         "provider": "openai",
-        "model_name": "gpt-5",
+        "model_name": "gpt-4o-mini",
         "mode": "live",
-        "reasoning_effort": "medium"
+        "reasoning_effort": null
       }
     },
     {
-      "persona_id": "persona_impatient_buyer",
-      "goal": "Move quickly through browsing, cart changes, and checkout while flagging confusing feedback, stale state, or results that do not match recent actions.",
+      "persona_id": "persona_gb_contract",
+      "goal": "Walk the group-buy flow probing UI-observable source-of-truth mismatches: identifiers shown vs used, boundary quantities, and invalid inputs the forms accept. Stay within what the browser UI exposes; do not claim API-level findings you cannot observe. Report only observed evidence.",
       "traits": {
-        "patience": "low",
-        "attention_to_detail": "medium",
-        "shopping_style": "fast_checkout"
+        "patience": "high",
+        "attention_to_detail": "high",
+        "shopping_style": "exploratory"
       },
       "constraints": {
-        "max_duration_ms": 90000,
-        "max_actions": 24,
+        "max_duration_ms": 120000,
+        "max_actions": 30,
         "viewport": {
           "width": 1280,
           "height": 800
@@ -96,17 +96,42 @@
       },
       "model": {
         "provider": "openai",
-        "model_name": "gpt-5",
+        "model_name": "gpt-4o-mini",
         "mode": "live",
-        "reasoning_effort": "low"
+        "reasoning_effort": null
       }
     },
     {
-      "persona_id": "persona_edge_case_explorer",
-      "goal": "Try realistic edge-case shopping behavior such as changing quantities, removing items, revisiting pages, and checking whether the site remains consistent.",
+      "persona_id": "persona_gb_security",
+      "goal": "Walk the group-buy flow flagging any visible permission, ownership, or finalization issue from a single session, such as controls that let a non-owner finalize or place an order before the group is complete. Treat cross-session isolation as a limitation, not an invented bug. Report only observed evidence.",
+      "traits": {
+        "patience": "medium",
+        "attention_to_detail": "high",
+        "shopping_style": "goal_directed"
+      },
+      "constraints": {
+        "max_duration_ms": 120000,
+        "max_actions": 30,
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "headless": false,
+        "slow_mo_ms": 250
+      },
+      "model": {
+        "provider": "openai",
+        "model_name": "gpt-4o-mini",
+        "mode": "live",
+        "reasoning_effort": null
+      }
+    },
+    {
+      "persona_id": "persona_gb_data_integrity",
+      "goal": "Walk the group-buy flow and check invariant drift: participant counts, order/group status, status regressions across the lifecycle, and stale state after returning to the Group Buy page. Flag inconsistencies between what an action did and what later screens show. Report only observed evidence.",
       "traits": {
         "patience": "high",
-        "attention_to_detail": "high",
+        "attention_to_detail": "very_high",
         "shopping_style": "exploratory"
       },
       "constraints": {
@@ -121,9 +146,9 @@
       },
       "model": {
         "provider": "openai",
-        "model_name": "gpt-5",
+        "model_name": "gpt-4o-mini",
         "mode": "live",
-        "reasoning_effort": "medium"
+        "reasoning_effort": null
       }
     }
   ],
@@ -141,7 +166,7 @@
   "fixing": {
     "model": {
       "provider": "openai",
-      "model_name": "gpt-5",
+      "model_name": "gpt-5.3-codex",
       "mode": "live",
       "reasoning_effort": "high"
     }
