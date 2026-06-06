@@ -40,6 +40,17 @@ def read_expected_sources(paths: list[Path]) -> dict[str, str]:
     return sources
 
 
+RECALL_FIRST_CLASSIFICATION_POLICY = [
+    "Prioritize recall over precision: it is better to send a plausible real bug forward than to discard it too early.",
+    "Classify as confirmed when the report describes a user-visible inconsistency, broken flow, incorrect calculation, stale state, misleading message, or accepted invalid input with coherent observed/expected behavior and reproduction steps.",
+    "A single well-formed persona report can be confirmed; do not require multiple personas to corroborate the issue.",
+    "Do not require an exact expected-behavior quote when the expected behavior is a normal product invariant, such as totals matching line items, disabled impossible actions, stable UI state, or clear feedback after user actions.",
+    "Use needs_more_evidence for plausible issues with incomplete proof, weak screenshots, missing details, or uncertainty.",
+    "Use invalid only when the report is clearly contradicted by the evidence, describes expected/intended behavior, is not user-observable, has no actionable reproduction path, or is unrelated to the application.",
+    "If choosing between invalid and needs_more_evidence, choose needs_more_evidence unless the report is clearly not a bug.",
+]
+
+
 def nullable_model_value(value: Any) -> Any:
     if value is None:
         return None
@@ -87,13 +98,15 @@ def classify_report(
     instructions = (
         "You are the verifier for an adaptive healing engine. Classify suspected "
         "shopping-app bug reports using evidence, expected behavior, and related reports. "
-        "Do not assume planted bugs. Return JSON only."
+        "Do not assume planted bugs. Bias toward catching real user-visible defects. "
+        "Return JSON only."
     )
     prompt = json.dumps(
         {
             "report": report.model_dump(mode="json"),
             "related_reports": [item.model_dump(mode="json") for item in related_reports],
             "expected_behavior_sources": expected_sources,
+            "classification_policy": RECALL_FIRST_CLASSIFICATION_POLICY,
             "allowed_response_shape": {
                 "classification": "confirmed | duplicate | invalid | needs_more_evidence",
                 "confidence": "0 to 1",
@@ -132,18 +145,21 @@ def classify_reports_batch(
         "You are the verifier for an adaptive healing engine. Classify suspected "
         "shopping-app bug reports using evidence, expected behavior, and all reports "
         "from the current run. Deduplicate reports that describe the same underlying "
-        "bug. Do not assume planted bugs. Return JSON only."
+        "bug. Do not assume planted bugs. Bias toward catching real user-visible "
+        "defects. Return JSON only."
     )
     prompt = json.dumps(
         {
             "reports": [report.model_dump(mode="json") for report in reports],
             "expected_behavior_sources": expected_sources,
+            "classification_policy": RECALL_FIRST_CLASSIFICATION_POLICY,
             "deduplication_rules": [
                 "Return exactly one decision for every input report_id.",
                 "When multiple reports describe the same underlying bug, choose the clearest report as canonical.",
-                "Mark the canonical report as confirmed when the evidence is sufficient.",
+                "Mark the canonical report as confirmed when the evidence is plausible and actionable under the recall-first classification policy.",
                 "Mark same-bug non-canonical reports as duplicate and set duplicate_of to the canonical report_id.",
-                "Use needs_more_evidence when evidence is insufficient, even if reports are similar.",
+                "Use needs_more_evidence when a plausible issue is not strong enough to confirm, even if reports are similar.",
+                "Use invalid only when the issue is clearly not a bug; do not use invalid merely because corroboration is missing.",
             ],
             "allowed_response_shape": {
                 "decisions": [
