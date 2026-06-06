@@ -1,0 +1,29 @@
+{
+  "app_base_url": "http://127.0.0.1:8765",
+  "artifact_dir": "/Users/donavanyieh/Documents/test/artifacts/run_29e27059/personas/persona_price_auditor",
+  "constraints": {
+    "headless": false,
+    "max_actions": 35,
+    "max_duration_ms": 120000,
+    "slow_mo_ms": 250,
+    "viewport": {
+      "height": 900,
+      "width": 1440
+    }
+  },
+  "goal": "Shop carefully while checking whether product prices, quantities, subtotals, discounts, cart totals, and checkout totals stay internally consistent.",
+  "model": {
+    "mode": "live",
+    "model_name": "gpt-5",
+    "provider": "openai",
+    "reasoning_effort": "medium"
+  },
+  "persona_id": "persona_price_auditor",
+  "run_id": "run_29e27059",
+  "schema_version": "1.0.0",
+  "traits": {
+    "attention_to_detail": "very_high",
+    "patience": "high",
+    "shopping_style": "comparison_shopper"
+  }
+}

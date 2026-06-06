@@ -1,0 +1,58 @@
+{
+  "confidence": 0.93,
+  "created_at": "2026-06-06T02:55:03Z",
+  "environment": {
+    "app_base_url": "http://127.0.0.1:8765",
+    "browser": "chromium",
+    "viewport": "1440x900"
+  },
+  "evidence": {
+    "artifacts": [
+      {
+        "artifact_id": "art_2a93a3ba3e",
+        "created_at": "2026-06-06T02:54:42Z",
+        "metadata": {
+          "viewport": "configured"
+        },
+        "mime_type": "image/png",
+        "schema_version": "1.0.0",
+        "sha256": null,
+        "type": "screenshot",
+        "uri": "/Users/donavanyieh/Documents/test/artifacts/run_29e27059/personas/persona_price_auditor/screen_002.png"
+      },
+      {
+        "artifact_id": "art_d4ee81df93",
+        "created_at": "2026-06-06T02:55:03Z",
+        "metadata": {
+          "kind": "persona_decision",
+          "model_name": "gpt-5"
+        },
+        "mime_type": "application/json",
+        "schema_version": "1.0.0",
+        "sha256": null,
+        "type": "text_log",
+        "uri": "/Users/donavanyieh/Documents/test/artifacts/run_29e27059/personas/persona_price_auditor/decision_002.json"
+      }
+    ],
+    "transcript_event_ids": [
+      "evt_c3e00919da",
+      "evt_b359eb96a1",
+      "evt_795e09c50b"
+    ]
+  },
+  "expected_behavior": "The cart Total should reflect the sum of all line subtotals. With one item at quantity 2, the Total should be $25.00.",
+  "metadata": {},
+  "observed_behavior": "After adding the Blue Shockproof Phone Case and setting quantity to 2, the line displays Subtotal $25.00 but the cart Total remains $12.50.",
+  "persona_id": "persona_price_auditor",
+  "report_id": "bugrep_0350987de3",
+  "reproduction_steps": [
+    "Open the Demo Shop home page.",
+    "Click 'Add to cart' for Blue Shockproof Phone Case.",
+    "In the cart, change Quantity to 2.",
+    "Observe that the line shows Subtotal $25.00 while the cart Total remains $12.50."
+  ],
+  "run_id": "run_29e27059",
+  "schema_version": "1.0.0",
+  "severity_guess": "high",
+  "title": "Cart Total not updated after quantity change; shows unit price instead of subtotal"
+}

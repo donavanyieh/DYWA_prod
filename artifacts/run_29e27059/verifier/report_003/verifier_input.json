@@ -1,0 +1,277 @@
+{
+  "artifacts": [
+    {
+      "artifact_id": "art_4acc7665bf",
+      "created_at": "2026-06-06T02:55:29Z",
+      "metadata": {
+        "viewport": "configured"
+      },
+      "mime_type": "image/png",
+      "schema_version": "1.0.0",
+      "sha256": null,
+      "type": "screenshot",
+      "uri": "/Users/donavanyieh/Documents/test/artifacts/run_29e27059/personas/persona_impatient_buyer/screen_003.png"
+    },
+    {
+      "artifact_id": "art_7ce7f07976",
+      "created_at": "2026-06-06T02:55:44Z",
+      "metadata": {
+        "kind": "persona_decision",
+        "model_name": "gpt-5"
+      },
+      "mime_type": "application/json",
+      "schema_version": "1.0.0",
+      "sha256": null,
+      "type": "text_log",
+      "uri": "/Users/donavanyieh/Documents/test/artifacts/run_29e27059/personas/persona_impatient_buyer/decision_003.json"
+    }
+  ],
+  "expected_behavior_sources": [
+    "/Users/donavanyieh/Documents/test/specs/app_expected_behavior.md"
+  ],
+  "known_confirmed_bugs": [],
+  "related_reports": [
+    {
+      "confidence": 0.9,
+      "created_at": "2026-06-06T02:54:25Z",
+      "environment": {
+        "app_base_url": "http://127.0.0.1:8765",
+        "browser": "chromium",
+        "viewport": "1440x900"
+      },
+      "evidence": {
+        "artifacts": [
+          {
+            "artifact_id": "art_1888bbd47f",
+            "created_at": "2026-06-06T02:54:01Z",
+            "metadata": {
+              "viewport": "configured"
+            },
+            "mime_type": "image/png",
+            "schema_version": "1.0.0",
+            "sha256": null,
+            "type": "screenshot",
+            "uri": "/Users/donavanyieh/Documents/test/artifacts/run_29e27059/personas/persona_general_shopper/screen_002.png"
+          },
+          {
+            "artifact_id": "art_ad96b2972a",
+            "created_at": "2026-06-06T02:54:24Z",
+            "metadata": {
+              "kind": "persona_decision",
+              "model_name": "gpt-5"
+            },
+            "mime_type": "application/json",
+            "schema_version": "1.0.0",
+            "sha256": null,
+            "type": "text_log",
+            "uri": "/Users/donavanyieh/Documents/test/artifacts/run_29e27059/personas/persona_general_shopper/decision_002.json"
+          }
+        ],
+        "transcript_event_ids": [
+          "evt_52e9b62e79",
+          "evt_b41b201f33",
+          "evt_702ac449b2"
+        ]
+      },
+      "expected_behavior": "The cart Total should equal the sum of item subtotals and update to $25.00 when quantity is 2.",
+      "metadata": {},
+      "observed_behavior": "Changing the cart quantity to 2 updates the item subtotal to $25.00 but the cart Total remains $12.50.",
+      "persona_id": "persona_general_shopper",
+      "report_id": "bugrep_3f6f7e08c1",
+      "reproduction_steps": [
+        "Open the Demo Shop home page.",
+        "Click 'Add to cart' on 'Blue Shockproof Phone Case'.",
+        "In the Cart, change Quantity from 1 to 2.",
+        "Observe that the item shows 'Subtotal $25.00' while the cart Total remains '$12.50'."
+      ],
+      "run_id": "run_29e27059",
+      "schema_version": "1.0.0",
+      "severity_guess": "high",
+      "title": "Cart Total not updated after quantity change (shows $12.50 instead of $25.00)"
+    },
+    {
+      "confidence": 0.93,
+      "created_at": "2026-06-06T02:55:03Z",
+      "environment": {
+        "app_base_url": "http://127.0.0.1:8765",
+        "browser": "chromium",
+        "viewport": "1440x900"
+      },
+      "evidence": {
+        "artifacts": [
+          {
+            "artifact_id": "art_2a93a3ba3e",
+            "created_at": "2026-06-06T02:54:42Z",
+            "metadata": {
+              "viewport": "configured"
+            },
+            "mime_type": "image/png",
+            "schema_version": "1.0.0",
+            "sha256": null,
+            "type": "screenshot",
+            "uri": "/Users/donavanyieh/Documents/test/artifacts/run_29e27059/personas/persona_price_auditor/screen_002.png"
+          },
+          {
+            "artifact_id": "art_d4ee81df93",
+            "created_at": "2026-06-06T02:55:03Z",
+            "metadata": {
+              "kind": "persona_decision",
+              "model_name": "gpt-5"
+            },
+            "mime_type": "application/json",
+            "schema_version": "1.0.0",
+            "sha256": null,
+            "type": "text_log",
+            "uri": "/Users/donavanyieh/Documents/test/artifacts/run_29e27059/personas/persona_price_auditor/decision_002.json"
+          }
+        ],
+        "transcript_event_ids": [
+          "evt_c3e00919da",
+          "evt_b359eb96a1",
+          "evt_795e09c50b"
+        ]
+      },
+      "expected_behavior": "The cart Total should reflect the sum of all line subtotals. With one item at quantity 2, the Total should be $25.00.",
+      "metadata": {},
+      "observed_behavior": "After adding the Blue Shockproof Phone Case and setting quantity to 2, the line displays Subtotal $25.00 but the cart Total remains $12.50.",
+      "persona_id": "persona_price_auditor",
+      "report_id": "bugrep_0350987de3",
+      "reproduction_steps": [
+        "Open the Demo Shop home page.",
+        "Click 'Add to cart' for Blue Shockproof Phone Case.",
+        "In the cart, change Quantity to 2.",
+        "Observe that the line shows Subtotal $25.00 while the cart Total remains $12.50."
+      ],
+      "run_id": "run_29e27059",
+      "schema_version": "1.0.0",
+      "severity_guess": "high",
+      "title": "Cart Total not updated after quantity change; shows unit price instead of subtotal"
+    },
+    {
+      "confidence": 0.86,
+      "created_at": "2026-06-06T02:56:34Z",
+      "environment": {
+        "app_base_url": "http://127.0.0.1:8765",
+        "browser": "chromium",
+        "viewport": "390x844"
+      },
+      "evidence": {
+        "artifacts": [
+          {
+            "artifact_id": "art_f669255775",
+            "created_at": "2026-06-06T02:56:11Z",
+            "metadata": {
+              "viewport": "configured"
+            },
+            "mime_type": "image/png",
+            "schema_version": "1.0.0",
+            "sha256": null,
+            "type": "screenshot",
+            "uri": "/Users/donavanyieh/Documents/test/artifacts/run_29e27059/personas/persona_edge_case_explorer/screen_002.png"
+          },
+          {
+            "artifact_id": "art_95589fa23b",
+            "created_at": "2026-06-06T02:56:34Z",
+            "metadata": {
+              "kind": "persona_decision",
+              "model_name": "gpt-5"
+            },
+            "mime_type": "application/json",
+            "schema_version": "1.0.0",
+            "sha256": null,
+            "type": "text_log",
+            "uri": "/Users/donavanyieh/Documents/test/artifacts/run_29e27059/personas/persona_edge_case_explorer/decision_002.json"
+          }
+        ],
+        "transcript_event_ids": [
+          "evt_c8805c004a",
+          "evt_a2946cc626",
+          "evt_b178e283ec"
+        ]
+      },
+      "expected_behavior": "The cart 'Total' should update to reflect the sum of all item subtotals. With one item at quantity 3, Total should be $37.50.",
+      "metadata": {},
+      "observed_behavior": "After setting the quantity to 3, the cart displays 'Unit $12.50 | Subtotal $37.50' but the 'Total' field remains $12.50.",
+      "persona_id": "persona_edge_case_explorer",
+      "report_id": "bugrep_1ad5a7d3ac",
+      "reproduction_steps": [
+        "Open the Demo Shop home page.",
+        "Click 'Add to cart' for 'Blue Shockproof Phone Case'.",
+        "Change the 'Quantity' field in the cart to 3.",
+        "Observe that Subtotal updates to $37.50 but Total remains $12.50."
+      ],
+      "run_id": "run_29e27059",
+      "schema_version": "1.0.0",
+      "severity_guess": "high",
+      "title": "Cart Total does not update with quantity; remains at unit price while subtotal is correct"
+    }
+  ],
+  "report": {
+    "confidence": 0.78,
+    "created_at": "2026-06-06T02:55:44Z",
+    "environment": {
+      "app_base_url": "http://127.0.0.1:8765",
+      "browser": "chromium",
+      "viewport": "1280x800"
+    },
+    "evidence": {
+      "artifacts": [
+        {
+          "artifact_id": "art_4acc7665bf",
+          "created_at": "2026-06-06T02:55:29Z",
+          "metadata": {
+            "viewport": "configured"
+          },
+          "mime_type": "image/png",
+          "schema_version": "1.0.0",
+          "sha256": null,
+          "type": "screenshot",
+          "uri": "/Users/donavanyieh/Documents/test/artifacts/run_29e27059/personas/persona_impatient_buyer/screen_003.png"
+        },
+        {
+          "artifact_id": "art_7ce7f07976",
+          "created_at": "2026-06-06T02:55:44Z",
+          "metadata": {
+            "kind": "persona_decision",
+            "model_name": "gpt-5"
+          },
+          "mime_type": "application/json",
+          "schema_version": "1.0.0",
+          "sha256": null,
+          "type": "text_log",
+          "uri": "/Users/donavanyieh/Documents/test/artifacts/run_29e27059/personas/persona_impatient_buyer/decision_003.json"
+        }
+      ],
+      "transcript_event_ids": [
+        "evt_9ba035d1fc",
+        "evt_681a29f796",
+        "evt_7ff6c5f3f8",
+        "evt_9e153073c7"
+      ]
+    },
+    "expected_behavior": "When the cart is empty, the Checkout action should be disabled or should show an error and must not create/charge an order.",
+    "metadata": {},
+    "observed_behavior": "After checking out once and seeing the cart read empty, pressing Checkout again was allowed and an order with a charge ($12.50) is shown despite no items in the cart.",
+    "persona_id": "persona_impatient_buyer",
+    "report_id": "bugrep_a15f89adf4",
+    "reproduction_steps": [
+      "Open the shop homepage.",
+      "Click 'Add to cart' on a product (e.g., Blue Shockproof Phone Case).",
+      "Click 'Checkout' to complete the purchase.",
+      "Without adding any new items, click 'Checkout' again while the cart reads 'Your cart is empty.'",
+      "Observe that an order with a charge is shown even though the cart is empty (checkout was allowed)."
+    ],
+    "run_id": "run_29e27059",
+    "schema_version": "1.0.0",
+    "severity_guess": "critical",
+    "title": "Checkout processes and charges even when the cart is empty"
+  },
+  "run_id": "run_29e27059",
+  "schema_version": "1.0.0",
+  "transcript_events": [
+    "evt_9ba035d1fc",
+    "evt_681a29f796",
+    "evt_7ff6c5f3f8",
+    "evt_9e153073c7"
+  ]
+}

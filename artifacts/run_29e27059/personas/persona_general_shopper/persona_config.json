@@ -1,0 +1,29 @@
+{
+  "app_base_url": "http://127.0.0.1:8765",
+  "artifact_dir": "/Users/donavanyieh/Documents/test/artifacts/run_29e27059/personas/persona_general_shopper",
+  "constraints": {
+    "headless": false,
+    "max_actions": 30,
+    "max_duration_ms": 120000,
+    "slow_mo_ms": 250,
+    "viewport": {
+      "height": 900,
+      "width": 1440
+    }
+  },
+  "goal": "Explore the shopping site as a real customer and flag any inconsistencies between actions, displayed state, prices, totals, messages, or checkout outcomes.",
+  "model": {
+    "mode": "live",
+    "model_name": "gpt-5",
+    "provider": "openai",
+    "reasoning_effort": "medium"
+  },
+  "persona_id": "persona_general_shopper",
+  "run_id": "run_29e27059",
+  "schema_version": "1.0.0",
+  "traits": {
+    "attention_to_detail": "high",
+    "patience": "medium",
+    "shopping_style": "goal_directed"
+  }
+}

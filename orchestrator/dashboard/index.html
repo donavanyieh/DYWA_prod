@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Adaptive Healing Dashboard</title>
+    <style>
+      :root { font-family: Arial, Helvetica, sans-serif; color: #17202a; }
+      body { margin: 0; background: #f4f6f9; }
+      header { background: #293241; color: white; padding: 18px 24px; }
+      main { max-width: 1120px; margin: 0 auto; padding: 24px; }
+      section { margin-bottom: 28px; }
+      .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+      .card { background: white; border: 1px solid #d7dce3; border-radius: 8px; padding: 14px; }
+      .muted { color: #667085; }
+      code { background: #e9edf3; border-radius: 4px; padding: 2px 4px; }
+      img { max-width: 100%; border: 1px solid #d7dce3; border-radius: 6px; }
+    </style>
+  </head>
+  <body>
+    <header><strong>Adaptive Healing Dashboard</strong></header>
+    <main>
+      <p class="muted">Open a run's <code>dashboard_bundle.json</code> to render live transcript output.</p>
+      <input id="file" type="file" accept="application/json">
+      <div id="dashboard"></div>
+    </main>
+    <script>
+      const dashboard = document.querySelector("#dashboard");
+      document.querySelector("#file").addEventListener("change", async event => {
+        const file = event.target.files[0];
+        if (!file) return;
+        const bundle = JSON.parse(await file.text());
+        render(bundle);
+      });
+
+      function render(bundle) {
+        dashboard.innerHTML = `
+          <section>
+            <h1>Run ${bundle.run_state.run_id}</h1>
+            <p>Status: <strong>${bundle.run_state.status}</strong> | Stage: <strong>${bundle.run_state.stage}</strong></p>
+          </section>
+          <section>
+            <h2>Bug Reports</h2>
+            <div class="grid">${bundle.bug_reports.map(report => `
+              <article class="card">
+                <h3>${report.title}</h3>
+                <p>${report.observed_behavior}</p>
+                <p class="muted">Confidence ${report.confidence}</p>
+              </article>
+            `).join("") || "<p class='muted'>No reports.</p>"}</div>
+          </section>
+          <section>
+            <h2>Verifier Decisions</h2>
+            <div class="grid">${bundle.verifier_decisions.map(decision => `
+              <article class="card">
+                <h3>${decision.classification}</h3>
+                <p>${decision.reasoning_summary}</p>
+                <p class="muted">${decision.required_next_action}</p>
+              </article>
+            `).join("") || "<p class='muted'>No decisions.</p>"}</div>
+          </section>
+          <section>
+            <h2>Fix Results</h2>
+            <div class="grid">${bundle.fix_results.map(result => `
+              <article class="card">
+                <h3>${result.status}</h3>
+                <p>${result.summary}</p>
+                <p class="muted">Promoted: ${result.promoted}</p>
+              </article>
+            `).join("") || "<p class='muted'>No fix results.</p>"}</div>
+          </section>
+          <section>
+            <h2>Timeline</h2>
+            <div class="grid">${bundle.events.map(item => `
+              <article class="card">
+                <p class="muted">${item.timestamp}</p>
+                <h3>${item.event_type}</h3>
+                <p>${item.summary}</p>
+                ${item.payload?.observation_summary ? `<p><strong>Observation:</strong> ${item.payload.observation_summary}</p>` : ""}
+                ${item.payload?.reasoning ? `<p><strong>Reasoning:</strong> ${item.payload.reasoning}</p>` : ""}
+                ${Array.isArray(item.payload?.consistency_checks) && item.payload.consistency_checks.length ? `
+                  <p><strong>Checks:</strong></p>
+                  <ul>${item.payload.consistency_checks.map(check => `<li>${check}</li>`).join("")}</ul>
+                ` : ""}
+              </article>
+            `).join("") || "<p class='muted'>No events.</p>"}</div>
+          </section>
+        `;
+      }
+    </script>
+  </body>
+</html>

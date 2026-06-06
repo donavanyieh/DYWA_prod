@@ -1,0 +1,22 @@
+{
+  "completed_at": null,
+  "components": {
+    "dashboard": "running",
+    "fixing_agent": "running",
+    "persona_agents": "idle",
+    "shopping_app": "running",
+    "verifier": "idle"
+  },
+  "run_id": "run_378ab7b2",
+  "schema_version": "1.0.0",
+  "stage": "fixing",
+  "started_at": "2026-06-06T02:40:36Z",
+  "status": "running",
+  "summary": {
+    "confirmed_total": 2,
+    "duplicate_total": 1,
+    "fixed_total": 0,
+    "invalid_total": 0,
+    "reports_total": 4
+  }
+}

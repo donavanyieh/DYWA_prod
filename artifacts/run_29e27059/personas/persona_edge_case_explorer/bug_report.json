@@ -1,0 +1,58 @@
+{
+  "confidence": 0.86,
+  "created_at": "2026-06-06T02:56:34Z",
+  "environment": {
+    "app_base_url": "http://127.0.0.1:8765",
+    "browser": "chromium",
+    "viewport": "390x844"
+  },
+  "evidence": {
+    "artifacts": [
+      {
+        "artifact_id": "art_f669255775",
+        "created_at": "2026-06-06T02:56:11Z",
+        "metadata": {
+          "viewport": "configured"
+        },
+        "mime_type": "image/png",
+        "schema_version": "1.0.0",
+        "sha256": null,
+        "type": "screenshot",
+        "uri": "/Users/donavanyieh/Documents/test/artifacts/run_29e27059/personas/persona_edge_case_explorer/screen_002.png"
+      },
+      {
+        "artifact_id": "art_95589fa23b",
+        "created_at": "2026-06-06T02:56:34Z",
+        "metadata": {
+          "kind": "persona_decision",
+          "model_name": "gpt-5"
+        },
+        "mime_type": "application/json",
+        "schema_version": "1.0.0",
+        "sha256": null,
+        "type": "text_log",
+        "uri": "/Users/donavanyieh/Documents/test/artifacts/run_29e27059/personas/persona_edge_case_explorer/decision_002.json"
+      }
+    ],
+    "transcript_event_ids": [
+      "evt_c8805c004a",
+      "evt_a2946cc626",
+      "evt_b178e283ec"
+    ]
+  },
+  "expected_behavior": "The cart 'Total' should update to reflect the sum of all item subtotals. With one item at quantity 3, Total should be $37.50.",
+  "metadata": {},
+  "observed_behavior": "After setting the quantity to 3, the cart displays 'Unit $12.50 | Subtotal $37.50' but the 'Total' field remains $12.50.",
+  "persona_id": "persona_edge_case_explorer",
+  "report_id": "bugrep_1ad5a7d3ac",
+  "reproduction_steps": [
+    "Open the Demo Shop home page.",
+    "Click 'Add to cart' for 'Blue Shockproof Phone Case'.",
+    "Change the 'Quantity' field in the cart to 3.",
+    "Observe that Subtotal updates to $37.50 but Total remains $12.50."
+  ],
+  "run_id": "run_29e27059",
+  "schema_version": "1.0.0",
+  "severity_guess": "high",
+  "title": "Cart Total does not update with quantity; remains at unit price while subtotal is correct"
+}

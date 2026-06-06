@@ -1,0 +1,38 @@
+{
+  "artifacts": [
+    {
+      "artifact_id": "art_49cef1cc09",
+      "created_at": "2026-06-06T02:44:52Z",
+      "metadata": {},
+      "mime_type": "text/plain",
+      "schema_version": "1.0.0",
+      "sha256": null,
+      "type": "test_report",
+      "uri": "/Users/donavanyieh/Documents/test/artifacts/run_378ab7b2/fixing/task_001/test_report.txt"
+    }
+  ],
+  "canonical_bug_id": "cart_total_uses_unit_price_instead_of_subtotal_for_qty_gt_1",
+  "changed_files": [
+    "app/main.py"
+  ],
+  "completed_at": "2026-06-06T02:44:52Z",
+  "duration_ms": 44166,
+  "error": null,
+  "metadata": {},
+  "promoted": true,
+  "result_id": "fixres_29892df8d8",
+  "run_id": "run_378ab7b2",
+  "schema_version": "1.0.0",
+  "started_at": "2026-06-06T02:44:08Z",
+  "status": "fixed",
+  "summary": "Fixed cart total calculation to multiply unit price by quantity for each item.",
+  "task_id": "fix_c83a949460",
+  "tests": {
+    "command": "pytest",
+    "duration_ms": 420,
+    "failed": 0,
+    "passed": 0,
+    "report_artifact_id": "art_49cef1cc09",
+    "status": "passed"
+  }
+}

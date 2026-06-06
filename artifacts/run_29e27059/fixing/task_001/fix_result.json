@@ -1,0 +1,38 @@
+{
+  "artifacts": [
+    {
+      "artifact_id": "art_1d5cacff87",
+      "created_at": "2026-06-06T02:58:54Z",
+      "metadata": {},
+      "mime_type": "text/plain",
+      "schema_version": "1.0.0",
+      "sha256": null,
+      "type": "test_report",
+      "uri": "/Users/donavanyieh/Documents/test/artifacts/run_29e27059/fixing/task_001/test_report.txt"
+    }
+  ],
+  "canonical_bug_id": "BUG_CART_TOTAL_NOT_UPDATING_AFTER_QTY_CHANGE",
+  "changed_files": [
+    "app/main.py"
+  ],
+  "completed_at": "2026-06-06T02:58:54Z",
+  "duration_ms": 48372,
+  "error": null,
+  "metadata": {},
+  "promoted": true,
+  "result_id": "fixres_de8bb06ddc",
+  "run_id": "run_29e27059",
+  "schema_version": "1.0.0",
+  "started_at": "2026-06-06T02:58:06Z",
+  "status": "fixed",
+  "summary": "Fix cart total calculation to multiply by item quantities.",
+  "task_id": "fix_e6434c78ab",
+  "tests": {
+    "command": "pytest",
+    "duration_ms": 387,
+    "failed": 0,
+    "passed": 0,
+    "report_artifact_id": "art_1d5cacff87",
+    "status": "passed"
+  }
+}

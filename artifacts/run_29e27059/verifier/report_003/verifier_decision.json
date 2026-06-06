@@ -1,0 +1,16 @@
+{
+  "canonical_bug_id": null,
+  "classification": "needs_more_evidence",
+  "confidence": 0.42,
+  "created_at": "2026-06-06T02:57:53Z",
+  "decision_id": "verdict_311f7ce3f7",
+  "duplicate_of": null,
+  "fix_task": null,
+  "metadata": {},
+  "reasoning_summary": "Allegation: checkout processes and charges with an empty cart. Current evidence is a single run with one screenshot and a persona log; we cannot verify the screenshot contents here. Related reports corroborate total miscalculation ($12.50 stuck) but not empty-cart checkout. To confirm, we need clear proof that the cart displayed empty and Checkout was enabled at click time, plus the resulting order/charge details.",
+  "report_id": "bugrep_a15f89adf4",
+  "required_next_action": "request_more_evidence",
+  "run_id": "run_29e27059",
+  "schema_version": "1.0.0",
+  "severity": null
+}
