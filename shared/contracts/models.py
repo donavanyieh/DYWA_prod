@@ -303,6 +303,7 @@ class RunConfigV1(StrictModel):
     fixing: FixingConfigV1 = Field(default_factory=FixingConfigV1)
     repo: RepoTargetV1
     sandbox_root: str = ".sandbox"
+    max_concurrent_personas: int = Field(default=1, ge=1)
     promotion_policy: PromotionPolicyV1
 
 

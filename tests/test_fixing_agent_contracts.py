@@ -16,13 +16,16 @@ from shared.contracts.models import (
 )
 from shared.ai.gpt5_client import _extract_json
 from agents.fixing.run import (
+    CODEX_EXEC_TIMEOUT_SECONDS,
     RAW_GPT_FIXER_MODEL,
     RAW_GPT_FIXER_REASONING_EFFORT,
+    RAW_GPT_FIXER_TIMEOUT_SECONDS,
     apply_codex_reported_file_contents,
     build_codex_prompt,
     build_codex_command,
     build_raw_gpt_patch_prompt,
     codex_model_attempts,
+    combine_subprocess_output,
     detect_changed_files,
     ensure_openai_api_key_env,
     get_openai_api_key,
@@ -32,7 +35,7 @@ from agents.fixing.run import (
     snapshot_promotable_files,
     write_sandbox_file,
 )
-from agents.personas.run import ask_for_valid_action, validate_action
+from agents.personas.run import ask_for_valid_action, execute_action, validate_action
 
 
 def build_task() -> FixTaskV1:
@@ -103,6 +106,12 @@ def test_parse_pytest_counts_from_summary_line() -> None:
     assert parse_pytest_counts("1 failed, 2 passed", ContractTestStatus.FAILED) == (2, 1)
 
 
+def test_combine_subprocess_output_handles_none_and_bytes() -> None:
+    assert combine_subprocess_output(None, "stderr text") == "stderr text"
+    assert combine_subprocess_output(b"stdout bytes", None) == "stdout bytes"
+    assert combine_subprocess_output(None, None) == ""
+
+
 def test_extract_json_uses_first_valid_object_with_trailing_text() -> None:
     response = '{"tool": "read_file", "path": "app/main.py"}\n{"extra": "ignored"}'
 
@@ -119,6 +128,60 @@ def test_persona_click_button_requires_button_text() -> None:
         {"action": "click_button", "button_text": "Add to cart"},
         page_state,
     ) == []
+
+
+def test_persona_click_button_rejects_disabled_button() -> None:
+    page_state = {
+        "buttons": ["Join Group Buy"],
+        "button_details": [
+            {"index": 0, "text": "Join Group Buy", "enabled": False, "disabled": True}
+        ],
+        "inputs": [],
+    }
+
+    errors = validate_action(
+        {"action": "click_button", "button_text": "Join Group Buy"},
+        page_state,
+    )
+
+    assert len(errors) == 1
+    assert "visible but disabled" in errors[0]
+
+
+def test_persona_execute_action_skips_disabled_button() -> None:
+    class FakeLocator:
+        clicked = False
+
+        @property
+        def first(self):
+            return self
+
+        def count(self):
+            return 1
+
+        def is_enabled(self, timeout=0):
+            return False
+
+        def click(self, timeout=0):
+            self.clicked = True
+
+    class FakePage:
+        locator = FakeLocator()
+
+        def get_by_role(self, role, name):
+            assert role == "button"
+            assert name == "Join Group Buy"
+            return self.locator
+
+    page = FakePage()
+
+    summary = execute_action(
+        page,
+        {"action": "click_button", "button_text": "Join Group Buy"},
+    )
+
+    assert summary == "Button 'Join Group Buy' is disabled; click was skipped."
+    assert not page.locator.clicked
 
 
 def test_detect_changed_files_reports_promotable_edits(tmp_path) -> None:
@@ -141,14 +204,84 @@ def test_apply_codex_reported_file_contents_writes_promotable_files(tmp_path) ->
                 {
                     "path": "app/main.py",
                     "content": "value = 2\n",
-                },
-                "tests/test_shop_smoke.py",
+                }
             ]
         },
     )
 
     assert applied == ["app/main.py"]
     assert (tmp_path / "app" / "main.py").read_text() == "value = 2\n"
+
+
+def test_apply_codex_reported_file_contents_rejects_path_only_changes(tmp_path) -> None:
+    app_dir = tmp_path / "app"
+    app_dir.mkdir()
+    (app_dir / "main.py").write_text("value = 1\n")
+
+    try:
+        apply_codex_reported_file_contents(
+            tmp_path,
+            {"changed_files": ["app/main.py"]},
+        )
+    except ValueError as exc:
+        assert "path and full content" in str(exc)
+    else:
+        raise AssertionError("Expected path-only changed_files to be rejected")
+
+
+def test_apply_codex_reported_file_contents_rejects_placeholder_content(tmp_path) -> None:
+    app_dir = tmp_path / "app"
+    app_dir.mkdir()
+    main_path = app_dir / "main.py"
+    existing = "value = 1\n" * 200
+    main_path.write_text(existing)
+
+    try:
+        apply_codex_reported_file_contents(
+            tmp_path,
+            {
+                "changed_files": [
+                    {
+                        "path": "app/main.py",
+                        "content": (
+                            "from __future__ import annotations\n\n"
+                            "# ... keep existing file content unchanged, except replace one line\n"
+                        ),
+                    }
+                ]
+            },
+        )
+    except ValueError as exc:
+        assert "placeholder" in str(exc)
+    else:
+        raise AssertionError("Expected placeholder content to be rejected")
+    assert main_path.read_text() == existing
+
+
+def test_apply_codex_reported_file_contents_rejects_tiny_replacement_for_large_file(tmp_path) -> None:
+    app_dir = tmp_path / "app"
+    app_dir.mkdir()
+    main_path = app_dir / "main.py"
+    existing = "value = 1\n" * 200
+    main_path.write_text(existing)
+
+    try:
+        apply_codex_reported_file_contents(
+            tmp_path,
+            {
+                "changed_files": [
+                    {
+                        "path": "app/main.py",
+                        "content": "value = 2\n",
+                    }
+                ]
+            },
+        )
+    except ValueError as exc:
+        assert "too small" in str(exc)
+    else:
+        raise AssertionError("Expected tiny replacement content to be rejected")
+    assert main_path.read_text() == existing
 
 
 def test_codex_prompt_includes_repository_context_for_blocked_tools(tmp_path) -> None:
@@ -174,6 +307,8 @@ def test_codex_prompt_includes_repository_context_for_blocked_tools(tmp_path) ->
     assert "app/main.py" in prompt
     assert "def calculate_cart_total" in prompt
     assert "Attempt 1 failed" in prompt
+    assert "Act as a patch proposer" in prompt
+    assert '"changed_files":["relative/path.py"]' not in prompt
 
 
 def test_codex_exec_command_uses_supported_noninteractive_flags(tmp_path) -> None:
@@ -225,6 +360,11 @@ def test_raw_gpt_fallback_uses_requested_model_and_high_reasoning() -> None:
     assert RAW_GPT_FIXER_REASONING_EFFORT == "high"
 
 
+def test_model_patch_paths_have_sixty_second_timeouts() -> None:
+    assert CODEX_EXEC_TIMEOUT_SECONDS == 60
+    assert RAW_GPT_FIXER_TIMEOUT_SECONDS == 60
+
+
 def test_raw_gpt_fallback_triggers_when_codex_tools_are_blocked() -> None:
     assert should_run_raw_gpt_fallback(
         [],
@@ -233,8 +373,22 @@ def test_raw_gpt_fallback_triggers_when_codex_tools_are_blocked() -> None:
     assert not should_run_raw_gpt_fallback(
         ["app/main.py"],
         "patch rejected: writing is blocked by read-only sandbox",
+        target_file="app/main.py",
     )
-    assert not should_run_raw_gpt_fallback([], "Codex made no changes because no bug exists.")
+    assert should_run_raw_gpt_fallback([], "Codex made no changes.")
+
+
+def test_raw_gpt_fallback_triggers_when_codex_rejected_target_content() -> None:
+    assert should_run_raw_gpt_fallback(
+        ["tests/test_shop_smoke.py"],
+        "Codex reported invalid full replacement content: app/main.py replacement content looks like a placeholder",
+        target_file="app/main.py",
+    )
+    assert not should_run_raw_gpt_fallback(
+        ["app/main.py"],
+        "Codex reported invalid full replacement content: app/main.py replacement content looks like a placeholder",
+        target_file="app/main.py",
+    )
 
 
 def test_raw_gpt_patch_prompt_requires_full_replacement_content(tmp_path) -> None:

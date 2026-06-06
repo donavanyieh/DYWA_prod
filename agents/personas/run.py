@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
-from playwright.sync_api import Page, sync_playwright
+from playwright.sync_api import Page, TimeoutError as PlaywrightTimeoutError, sync_playwright
 
 from shared.ai.gpt5_client import OpenAIJsonClient
 from shared.contracts.models import (
@@ -217,7 +217,22 @@ def save_memory(memory: dict[str, Any]) -> Path:
 
 
 def describe_page(page: Page) -> dict[str, object]:
-    buttons = [button.inner_text().strip() for button in page.locator("button").all()]
+    button_details = []
+    for index, button in enumerate(page.locator("button").all()):
+        text = button.inner_text().strip()
+        try:
+            enabled = button.is_enabled(timeout=500)
+        except PlaywrightTimeoutError:
+            enabled = False
+        button_details.append(
+            {
+                "index": index,
+                "text": text,
+                "enabled": enabled,
+                "disabled": not enabled,
+            }
+        )
+    buttons = [str(button["text"]) for button in button_details]
     links = [link.inner_text().strip() for link in page.locator("a").all()]
     inputs = []
     for index, input_element in enumerate(page.locator("input").all()):
@@ -232,6 +247,7 @@ def describe_page(page: Page) -> dict[str, object]:
         "url": page.url,
         "text": page.locator("body").inner_text(timeout=2000),
         "buttons": buttons,
+        "button_details": button_details,
         "links": links,
         "inputs": inputs,
     }
@@ -327,6 +343,22 @@ def decision_artifact(
     )
 
 
+def button_details_for_state(page_state: dict[str, object]) -> list[dict[str, object]]:
+    raw_details = page_state.get("button_details")
+    if not isinstance(raw_details, list):
+        return []
+    return [item for item in raw_details if isinstance(item, dict)]
+
+
+def disabled_button_names(page_state: dict[str, object]) -> set[str]:
+    disabled: set[str] = set()
+    for detail in button_details_for_state(page_state):
+        name = str(detail.get("text", ""))
+        if name and detail.get("enabled") is False:
+            disabled.add(name)
+    return disabled
+
+
 def ask_for_action(
     *,
     client: OpenAIJsonClient,
@@ -405,6 +437,11 @@ def validate_action(action: dict[str, object], page_state: dict[str, object]) ->
         elif button_text not in [str(button) for button in page_state.get("buttons", [])]:
             errors.append(
                 f"button_text '{button_text}' is not one of the visible buttons: {page_state.get('buttons', [])}."
+            )
+        elif button_text in disabled_button_names(page_state):
+            errors.append(
+                f"button_text '{button_text}' is visible but disabled. Do not click disabled controls; "
+                "choose report_bug if the disabled/enabled state is wrong, otherwise finish or choose another action."
             )
 
     if action_name == "fill_input":
@@ -500,8 +537,19 @@ def execute_action(page: Page, action: dict[str, object]) -> str:
     action_name = str(action.get("action"))
     if action_name == "click_button":
         button_text = str(action.get("button_text", ""))
-        page.get_by_role("button", name=button_text).first.click(timeout=5000)
-        return f"Clicked button '{button_text}'."
+        locator = page.get_by_role("button", name=button_text).first
+        if locator.count() == 0:
+            return f"Button '{button_text}' was no longer present; click was skipped."
+        try:
+            if not locator.is_enabled(timeout=1000):
+                return f"Button '{button_text}' is disabled; click was skipped."
+            locator.click(timeout=5000)
+            return f"Clicked button '{button_text}'."
+        except PlaywrightTimeoutError as exc:
+            message = str(exc)
+            if "element is not enabled" in message or "Timeout" in message:
+                return f"Button '{button_text}' was not actionable before timeout; click was skipped."
+            raise
     if action_name == "fill_input":
         input_index = int(action["input_index"])
         value = str(action["value"])
