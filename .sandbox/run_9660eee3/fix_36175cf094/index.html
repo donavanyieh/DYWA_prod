@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Hello Button</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: Arial, Helvetica, sans-serif;
+      }
+
+      body {
+        min-height: 100vh;
+        margin: 0;
+        display: grid;
+        place-items: center;
+        background: #f4f7fb;
+        color: #17202a;
+      }
+
+      main {
+        width: min(90vw, 420px);
+        text-align: center;
+      }
+
+      button {
+        border: 0;
+        border-radius: 8px;
+        padding: 14px 22px;
+        background: #1f7aec;
+        color: white;
+        font-size: 1rem;
+        font-weight: 700;
+        cursor: pointer;
+        box-shadow: 0 8px 18px rgba(31, 122, 236, 0.22);
+      }
+
+      button:hover {
+        background: #1767ca;
+      }
+
+      button:focus-visible {
+        outline: 3px solid #8ec3ff;
+        outline-offset: 3px;
+      }
+
+      #message {
+        min-height: 1.5em;
+        margin-top: 24px;
+        font-size: 1.5rem;
+        font-weight: 700;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <button id="helloButton" type="button">Say hello</button>
+      <p id="message" aria-live="polite"></p>
+    </main>
+
+    <script>
+      const button = document.querySelector("#helloButton");
+      const message = document.querySelector("#message");
+
+      button.addEventListener("click", () => {
+        message.textContent = "Hello, world!";
+      });
+    </script>
+  </body>
+</html>

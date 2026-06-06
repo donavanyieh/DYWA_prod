@@ -1,0 +1,58 @@
+{
+  "confidence": 0.86,
+  "created_at": "2026-06-06T05:38:26Z",
+  "environment": {
+    "app_base_url": "http://127.0.0.1:8765",
+    "browser": "chromium",
+    "viewport": "1440x900"
+  },
+  "evidence": {
+    "artifacts": [
+      {
+        "artifact_id": "art_43e6c39241",
+        "created_at": "2026-06-06T05:38:10Z",
+        "metadata": {
+          "viewport": "configured"
+        },
+        "mime_type": "image/png",
+        "schema_version": "1.0.0",
+        "sha256": null,
+        "type": "screenshot",
+        "uri": "/Users/donavanyieh/Desktop/hackathon_prod/dywa_prod/DYWA_prod/artifacts/run_9660eee3/personas/persona_price_auditor/screen_002.png"
+      },
+      {
+        "artifact_id": "art_1daf51bb5b",
+        "created_at": "2026-06-06T05:38:26Z",
+        "metadata": {
+          "kind": "persona_decision",
+          "model_name": "gpt-5"
+        },
+        "mime_type": "application/json",
+        "schema_version": "1.0.0",
+        "sha256": null,
+        "type": "text_log",
+        "uri": "/Users/donavanyieh/Desktop/hackathon_prod/dywa_prod/DYWA_prod/artifacts/run_9660eee3/personas/persona_price_auditor/decision_002.json"
+      }
+    ],
+    "transcript_event_ids": [
+      "evt_9c8e72e7f9",
+      "evt_f303000abd",
+      "evt_89619b830c"
+    ]
+  },
+  "expected_behavior": "Cart Total should equal the sum of item subtotals (here, $25.00) and update when quantity changes.",
+  "metadata": {},
+  "observed_behavior": "With quantity set to 2, the item subtotal is $25.00, but the cart Total still displays $12.50.",
+  "persona_id": "persona_price_auditor",
+  "report_id": "bugrep_4d94daeca5",
+  "reproduction_steps": [
+    "Open the Demo Shop home page.",
+    "Click 'Add to cart' for Blue Shockproof Phone Case.",
+    "Change the cart quantity to 2.",
+    "Observe that Subtotal updates to $25.00 while Total remains $12.50."
+  ],
+  "run_id": "run_9660eee3",
+  "schema_version": "1.0.0",
+  "severity_guess": "high",
+  "title": "Cart total does not update with quantity; shows unit price instead of subtotal"
+}

@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0.0",
+  "task_id": "fix_demo_001",
+  "run_id": "run_demo_001",
+  "canonical_bug_id": "bug_cart_total_quantity",
+  "created_at": "2026-06-06T12:03:10Z",
+  "source_report_ids": [
+    "bugrep_demo_001"
+  ],
+  "title": "Cart total did not update after quantity changed",
+  "confirmed_behavior": {
+    "observed": "Cart quantity changed but total stayed unchanged.",
+    "expected": "Cart total updates after quantity changes."
+  },
+  "reproduction_steps": [
+    "Add Blue Shockproof Phone Case to cart.",
+    "Increase quantity to 2.",
+    "Observe the cart total."
+  ],
+  "evidence_artifacts": [],
+  "repo": {
+    "path": ".",
+    "entrypoint": "app/main.py",
+    "test_command": "pytest"
+  },
+  "sandbox": {
+    "mode": "copy",
+    "path": ".sandbox/run_demo_001/fix_demo_001"
+  },
+  "promotion_policy": {
+    "target_file": "app/main.py",
+    "requires_tests_green": true,
+    "requires_contract_validation": true
+  },
+  "metadata": {}
+}
+

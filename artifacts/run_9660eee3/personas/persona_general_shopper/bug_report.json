@@ -1,0 +1,58 @@
+{
+  "confidence": 0.92,
+  "created_at": "2026-06-06T05:37:51Z",
+  "environment": {
+    "app_base_url": "http://127.0.0.1:8765",
+    "browser": "chromium",
+    "viewport": "1440x900"
+  },
+  "evidence": {
+    "artifacts": [
+      {
+        "artifact_id": "art_253a57ee36",
+        "created_at": "2026-06-06T05:37:27Z",
+        "metadata": {
+          "viewport": "configured"
+        },
+        "mime_type": "image/png",
+        "schema_version": "1.0.0",
+        "sha256": null,
+        "type": "screenshot",
+        "uri": "/Users/donavanyieh/Desktop/hackathon_prod/dywa_prod/DYWA_prod/artifacts/run_9660eee3/personas/persona_general_shopper/screen_002.png"
+      },
+      {
+        "artifact_id": "art_79e70eac9b",
+        "created_at": "2026-06-06T05:37:50Z",
+        "metadata": {
+          "kind": "persona_decision",
+          "model_name": "gpt-5"
+        },
+        "mime_type": "application/json",
+        "schema_version": "1.0.0",
+        "sha256": null,
+        "type": "text_log",
+        "uri": "/Users/donavanyieh/Desktop/hackathon_prod/dywa_prod/DYWA_prod/artifacts/run_9660eee3/personas/persona_general_shopper/decision_002.json"
+      }
+    ],
+    "transcript_event_ids": [
+      "evt_70ae86fc17",
+      "evt_9437e89940",
+      "evt_dee9163cff"
+    ]
+  },
+  "expected_behavior": "Total should reflect the full cost of items in the cart. For a single line item with quantity 2 at $12.50 each, Total should be $25.00.",
+  "metadata": {},
+  "observed_behavior": "With quantity set to 2, the cart displays Unit $12.50 | Subtotal $25.00 but Total: $12.50.",
+  "persona_id": "persona_general_shopper",
+  "report_id": "bugrep_f5aee972ad",
+  "reproduction_steps": [
+    "Open the Demo Shop home page.",
+    "Click 'Add to cart' on Blue Shockproof Phone Case.",
+    "Set the cart quantity to 2.",
+    "Observe that Subtotal updates to $25.00 but Total remains $12.50."
+  ],
+  "run_id": "run_9660eee3",
+  "schema_version": "1.0.0",
+  "severity_guess": "medium",
+  "title": "Cart Total shows unit price instead of subtotal when quantity > 1"
+}

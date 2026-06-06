@@ -1,0 +1,31 @@
+from shared.contracts.models import (
+    ArtifactRefV1,
+    BugReportV1,
+    DashboardRunBundleV1,
+    ErrorV1,
+    FixResultV1,
+    FixTaskV1,
+    PersonaConfigV1,
+    RunConfigV1,
+    RunStateV1,
+    Stage0ResetResultV1,
+    TranscriptEventV1,
+    VerifierDecisionV1,
+    VerifierInputV1,
+)
+
+__all__ = [
+    "ArtifactRefV1",
+    "BugReportV1",
+    "DashboardRunBundleV1",
+    "ErrorV1",
+    "FixResultV1",
+    "FixTaskV1",
+    "PersonaConfigV1",
+    "RunConfigV1",
+    "RunStateV1",
+    "Stage0ResetResultV1",
+    "TranscriptEventV1",
+    "VerifierDecisionV1",
+    "VerifierInputV1",
+]
