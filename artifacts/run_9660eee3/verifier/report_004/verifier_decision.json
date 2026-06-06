@@ -1,0 +1,16 @@
+{
+  "canonical_bug_id": "cart_total_shows_unit_price_instead_of_subtotal",
+  "classification": "duplicate",
+  "confidence": 0.9,
+  "created_at": "2026-06-06T05:41:34Z",
+  "decision_id": "verdict_aeff8d4ba6",
+  "duplicate_of": "bugrep_f5aee972ad",
+  "fix_task": null,
+  "metadata": {},
+  "reasoning_summary": "Same underlying bug: cart Total does not update with quantity and shows unit price.",
+  "report_id": "bugrep_68af269c56",
+  "required_next_action": "link_to_existing_bug",
+  "run_id": "run_9660eee3",
+  "schema_version": "1.0.0",
+  "severity": null
+}

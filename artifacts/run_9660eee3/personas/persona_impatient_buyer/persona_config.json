@@ -1,0 +1,29 @@
+{
+  "app_base_url": "http://127.0.0.1:8765",
+  "artifact_dir": "/Users/donavanyieh/Desktop/hackathon_prod/dywa_prod/DYWA_prod/artifacts/run_9660eee3/personas/persona_impatient_buyer",
+  "constraints": {
+    "headless": false,
+    "max_actions": 24,
+    "max_duration_ms": 90000,
+    "slow_mo_ms": 250,
+    "viewport": {
+      "height": 800,
+      "width": 1280
+    }
+  },
+  "goal": "Move quickly through browsing, cart changes, and checkout while flagging confusing feedback, stale state, or results that do not match recent actions.",
+  "model": {
+    "mode": "live",
+    "model_name": "gpt-5",
+    "provider": "openai",
+    "reasoning_effort": "low"
+  },
+  "persona_id": "persona_impatient_buyer",
+  "run_id": "run_9660eee3",
+  "schema_version": "1.0.0",
+  "traits": {
+    "attention_to_detail": "medium",
+    "patience": "low",
+    "shopping_style": "fast_checkout"
+  }
+}

@@ -589,7 +589,7 @@ def index() -> str:
 
       async function api(path, options = {}) {
         const response = await fetch(path, {
-          headers: { "Content-Type": "application/json" },
+          headers: { \"Content-Type\": \"application/json\" },
           ...options
         });
         const data = await response.json().catch(() => ({}));

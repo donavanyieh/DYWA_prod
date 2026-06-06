@@ -1,0 +1,19 @@
+{
+  "canonical_bug_id": "checkout_allows_empty_cart_and_creates_order",
+  "classification": "confirmed",
+  "confidence": 0.88,
+  "created_at": "2026-06-06T05:41:34Z",
+  "decision_id": "verdict_e887d5fa2b",
+  "duplicate_of": null,
+  "fix_task": {
+    "schema_version": "1.0.0",
+    "task_id": "fix_39cb4dad79"
+  },
+  "metadata": {},
+  "reasoning_summary": "Checkout creates an order and charges $12.50 despite the cart explicitly showing as empty; this should be blocked.",
+  "report_id": "bugrep_cf38ecfbf6",
+  "required_next_action": "send_to_fixing_agent",
+  "run_id": "run_9660eee3",
+  "schema_version": "1.0.0",
+  "severity": "critical"
+}

@@ -46,9 +46,9 @@
       },
       "model": {
         "provider": "openai",
-        "model_name": "gpt-5",
+        "model_name": "gpt-4o-mini",
         "mode": "live",
-        "reasoning_effort": "medium"
+        "reasoning_effort": null
       }
     },
     {
@@ -71,9 +71,9 @@
       },
       "model": {
         "provider": "openai",
-        "model_name": "gpt-5",
+        "model_name": "gpt-4o-mini",
         "mode": "live",
-        "reasoning_effort": "medium"
+        "reasoning_effort": null
       }
     },
     {
@@ -96,9 +96,9 @@
       },
       "model": {
         "provider": "openai",
-        "model_name": "gpt-5",
+        "model_name": "gpt-4o-mini",
         "mode": "live",
-        "reasoning_effort": "low"
+        "reasoning_effort": null
       }
     },
     {
@@ -121,9 +121,9 @@
       },
       "model": {
         "provider": "openai",
-        "model_name": "gpt-5",
+        "model_name": "gpt-4o-mini",
         "mode": "live",
-        "reasoning_effort": "medium"
+        "reasoning_effort": null
       }
     }
   ],
@@ -141,7 +141,7 @@
   "fixing": {
     "model": {
       "provider": "openai",
-      "model_name": "gpt-5",
+      "model_name": "gpt-5.3-codex",
       "mode": "live",
       "reasoning_effort": "high"
     }

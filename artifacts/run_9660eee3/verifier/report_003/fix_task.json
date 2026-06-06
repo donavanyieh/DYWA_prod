@@ -1,0 +1,40 @@
+{
+  "canonical_bug_id": "checkout_allows_empty_cart_and_creates_order",
+  "confirmed_behavior": {
+    "expected": "Checkout should be disabled or should display an error when the cart is empty, and no order should be created or charged.",
+    "observed": "With the cart showing 'Your cart is empty.', clicking the Checkout button creates an order (e.g., 'Order ord_db6cc37d') and displays 'Total charged: $12.50'."
+  },
+  "created_at": "2026-06-06T05:41:34Z",
+  "evidence_artifacts": [
+    "art_f468de8e49",
+    "art_06779d124f"
+  ],
+  "metadata": {},
+  "promotion_policy": {
+    "requires_contract_validation": true,
+    "requires_tests_green": true,
+    "target_file": "app/main.py"
+  },
+  "repo": {
+    "entrypoint": "app/main.py",
+    "path": ".",
+    "test_command": "pytest"
+  },
+  "reproduction_steps": [
+    "Open the Demo Shop home page.",
+    "Ensure the Cart panel shows 'Your cart is empty.'",
+    "Click the 'Checkout' button.",
+    "Observe that an order card appears with an order ID and a non-zero 'Total charged' despite no items in the cart."
+  ],
+  "run_id": "run_9660eee3",
+  "sandbox": {
+    "mode": "copy",
+    "path": ".sandbox/run_9660eee3/fix_39cb4dad79"
+  },
+  "schema_version": "1.0.0",
+  "source_report_ids": [
+    "bugrep_cf38ecfbf6"
+  ],
+  "task_id": "fix_39cb4dad79",
+  "title": "Checkout succeeds and charges even when cart is empty"
+}

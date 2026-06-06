@@ -1,0 +1,18 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.14.2, pytest-9.0.3, pluggy-1.6.0
+rootdir: /Users/donavanyieh/Desktop/hackathon_prod/dywa_prod/DYWA_prod/.sandbox/run_9660eee3/fix_36175cf094
+configfile: pyproject.toml
+testpaths: tests
+plugins: anyio-4.13.0
+collected 3 items
+
+tests/test_shop_smoke.py ...                                             [100%]
+
+=============================== warnings summary ===============================
+../../../../../../hackathon/codex-autofix/.venv/lib/python3.14/site-packages/fastapi/testclient.py:1
+  /Users/donavanyieh/Desktop/hackathon/codex-autofix/.venv/lib/python3.14/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+========================= 3 passed, 1 warning in 0.14s =========================
+
