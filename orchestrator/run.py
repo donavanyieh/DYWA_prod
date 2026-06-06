@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import asyncio
 import subprocess
 import sys
 import time
@@ -114,7 +115,55 @@ def build_persona_config(
     )
 
 
-def run_live(config: RunConfigV1) -> Path:
+async def run_personas_concurrently(
+    *,
+    config: RunConfigV1,
+    run_id: str,
+    run_dir: Path,
+    concurrency: int,
+) -> list[Path]:
+    semaphore = asyncio.Semaphore(concurrency)
+
+    async def run_one(index: int, template: PersonaTemplateV1) -> tuple[int, Path | None]:
+        try:
+            persona_config = build_persona_config(
+                run_id=run_id,
+                app_base_url=config.app.base_url,
+                run_dir=run_dir,
+                template=template,
+            )
+            write_json(
+                run_dir / "personas" / template.persona_id / "persona_config.json",
+                persona_config,
+            )
+            log(f"Persona {template.persona_id} starting with model {template.model.model_name}.")
+            async with semaphore:
+                persona_result = await asyncio.to_thread(run_persona, persona_config)
+            bug_report_path = persona_result.get("bug_report_path")
+            if bug_report_path:
+                log(f"Persona {template.persona_id} reported a suspected bug: {bug_report_path}")
+                return index, Path(str(bug_report_path))
+            log(f"Persona {template.persona_id} completed without a bug report.")
+            return index, None
+        except Exception as exc:
+            log(f"Persona {template.persona_id} failed: {exc}")
+            return index, None
+
+    tasks = [
+        asyncio.create_task(run_one(index, template))
+        for index, template in enumerate(config.personas)
+    ]
+    results = await asyncio.gather(*tasks)
+    ordered_results = sorted(results, key=lambda result: result[0])
+    return [path for _, path in ordered_results if path is not None]
+
+
+def run_live(config: RunConfigV1, *, max_concurrent_personas: int | None = None) -> Path:
+    concurrency = (
+        max_concurrent_personas
+        if max_concurrent_personas is not None
+        else config.max_concurrent_personas
+    )
     run_id = f"{config.run_id_prefix}_{uuid4().hex[:8]}"
     started_at = utc_now()
     run_dir = ROOT / "artifacts" / run_id
@@ -165,25 +214,33 @@ def run_live(config: RunConfigV1) -> Path:
         )
         bug_report_paths: list[Path] = []
         log(f"Launching {len(config.personas)} persona(s).")
-        for template in config.personas:
-            log(f"Persona {template.persona_id} starting with model {template.model.model_name}.")
-            persona_config = build_persona_config(
-                run_id=run_id,
-                app_base_url=config.app.base_url,
-                run_dir=run_dir,
-                template=template,
+        if concurrency <= 1:
+            for template in config.personas:
+                log(f"Persona {template.persona_id} starting with model {template.model.model_name}.")
+                persona_config = build_persona_config(
+                    run_id=run_id,
+                    app_base_url=config.app.base_url,
+                    run_dir=run_dir,
+                    template=template,
+                )
+                write_json(
+                    run_dir / "personas" / template.persona_id / "persona_config.json",
+                    persona_config,
+                )
+                persona_result = run_persona(persona_config)
+                bug_report_path = persona_result.get("bug_report_path")
+                if bug_report_path:
+                    bug_report_paths.append(Path(str(bug_report_path)))
+                    log(f"Persona {template.persona_id} reported a suspected bug: {bug_report_path}")
+                else:
+                    log(f"Persona {template.persona_id} completed without a bug report.")
+        else:
+            log(f"Running personas concurrently (max {concurrency} at a time).")
+            bug_report_paths = asyncio.run(
+                run_personas_concurrently(
+                    config=config, run_id=run_id, run_dir=run_dir, concurrency=concurrency
+                )
             )
-            write_json(
-                run_dir / "personas" / template.persona_id / "persona_config.json",
-                persona_config,
-            )
-            persona_result = run_persona(persona_config)
-            bug_report_path = persona_result.get("bug_report_path")
-            if bug_report_path:
-                bug_report_paths.append(Path(str(bug_report_path)))
-                log(f"Persona {template.persona_id} reported a suspected bug: {bug_report_path}")
-            else:
-                log(f"Persona {template.persona_id} completed without a bug report.")
 
         if not bug_report_paths:
             log("No bug reports produced. Building dashboard bundle.")
@@ -293,10 +350,13 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Run the live adaptive healing workflow.")
     parser.add_argument("--mode", choices=["live"], default="live")
     parser.add_argument("--config", type=Path, default=ROOT / "configs" / "run_config.json")
+    parser.add_argument("--max-concurrent-personas", type=int, default=None)
     args = parser.parse_args()
+    if args.max_concurrent_personas is not None and args.max_concurrent_personas < 1:
+        parser.error("--max-concurrent-personas must be >= 1")
 
     config = RunConfigV1.model_validate(read_json(args.config))
-    run_dir = run_live(config)
+    run_dir = run_live(config, max_concurrent_personas=args.max_concurrent_personas)
     print(f"Run artifacts: {run_dir}")
     print(f"Dashboard bundle: {run_dir / 'dashboard_bundle.json'}")
     return 0
