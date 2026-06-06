@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import ast
 import hashlib
 import json
 import os
@@ -14,7 +15,6 @@ import time
 from pathlib import Path
 from uuid import uuid4
 
-from shared.ai.gpt5_client import OpenAIJsonClient
 from shared.contracts.models import (
     ArtifactRefV1,
     ErrorV1,
@@ -39,8 +39,8 @@ RAW_GPT_FIXER_REASONING_EFFORT = "high"
 OPENAI_API_KEY_ENV_NAMES = ("OPENAI_API_KEY", "OPENAIKEY", "OPENAI_KEY")
 MAX_FIX_ATTEMPTS = 3
 CODEX_API_KEY_LOGIN_TIMEOUT_SECONDS = 30
-CODEX_EXEC_TIMEOUT_SECONDS = 240
-RAW_GPT_FIXER_TIMEOUT_SECONDS = 240
+CODEX_EXEC_TIMEOUT_SECONDS = 60
+RAW_GPT_FIXER_TIMEOUT_SECONDS = 60
 TEST_TIMEOUT_SECONDS = 60
 CONTRACT_VALIDATION_TIMEOUT_SECONDS = 30
 MAX_HISTORY_TEXT_CHARS = 8000
@@ -59,7 +59,22 @@ CODEX_WRITE_BLOCKED_MARKERS = (
     "could not modify",
     "unable to edit",
     "no changed files",
+    "codex exec failed",
+    "codex reported invalid",
+    "rejected reported file content",
 )
+PLACEHOLDER_CONTENT_MARKERS = (
+    "keep existing file content",
+    "existing file content unchanged",
+    "rest of file",
+    "same as before",
+    "unchanged, except",
+    "omitted for brevity",
+    "full file content",
+    "diff --git",
+)
+MIN_EXISTING_FILE_CHARS_FOR_RATIO_CHECK = 1000
+MIN_REPLACEMENT_CHAR_RATIO = 0.45
 
 IGNORED_COPY_DIRS = {
     ".git",
@@ -75,6 +90,26 @@ def truncate_text(value: str, limit: int = MAX_HISTORY_TEXT_CHARS) -> str:
     if len(value) <= limit:
         return value
     return value[:limit] + f"\n...[truncated {len(value) - limit} chars]"
+
+
+def stream_to_text(value: object) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, bytes):
+        return value.decode("utf-8", errors="replace")
+    return str(value)
+
+
+def combine_subprocess_output(stdout: object, stderr: object) -> str:
+    parts = [stream_to_text(stdout), stream_to_text(stderr)]
+    return "\n".join(part for part in parts if part)
+
+
+def timeout_output(prefix: str, exc: subprocess.TimeoutExpired) -> str:
+    tail = combine_subprocess_output(exc.stdout, exc.stderr)
+    if tail:
+        return f"{prefix}\n{tail}"
+    return prefix
 
 
 def ignore_workspace_items(_directory: str, names: list[str]) -> set[str]:
@@ -168,12 +203,12 @@ def run_tests(sandbox_path: Path, command: str) -> tuple[TestSummaryV1, str]:
             check=False,
             timeout=TEST_TIMEOUT_SECONDS,
         )
-        output = completed.stdout + "\n" + completed.stderr
+        output = combine_subprocess_output(completed.stdout, completed.stderr)
         status = TestStatus.PASSED if completed.returncode == 0 else TestStatus.FAILED
     except subprocess.TimeoutExpired as exc:
-        output = (
-            f"Test command timed out after {TEST_TIMEOUT_SECONDS} seconds.\n"
-            f"{exc.stdout or ''}\n{exc.stderr or ''}"
+        output = timeout_output(
+            f"Test command timed out after {TEST_TIMEOUT_SECONDS} seconds.",
+            exc,
         )
         status = TestStatus.FAILED
     duration_ms = int((time.monotonic() - started) * 1000)
@@ -210,14 +245,16 @@ def run_contract_validation(sandbox_path: Path) -> tuple[bool, str, int]:
                 timeout=CONTRACT_VALIDATION_TIMEOUT_SECONDS,
             )
             outputs.append("$ " + " ".join(command))
-            outputs.append(completed.stdout + completed.stderr)
+            outputs.append(combine_subprocess_output(completed.stdout, completed.stderr))
             if completed.returncode != 0:
                 return False, "\n".join(outputs), int((time.monotonic() - started) * 1000)
         except subprocess.TimeoutExpired as exc:
             outputs.append("$ " + " ".join(command))
             outputs.append(
-                f"Contract validation timed out after {CONTRACT_VALIDATION_TIMEOUT_SECONDS} seconds.\n"
-                f"{exc.stdout or ''}\n{exc.stderr or ''}"
+                timeout_output(
+                    f"Contract validation timed out after {CONTRACT_VALIDATION_TIMEOUT_SECONDS} seconds.",
+                    exc,
+                )
             )
             return False, "\n".join(outputs), int((time.monotonic() - started) * 1000)
     return True, "\n".join(outputs), int((time.monotonic() - started) * 1000)
@@ -264,6 +301,27 @@ def snapshot_promotable_files(sandbox_path: Path) -> dict[str, str]:
         path.relative_to(sandbox_path).as_posix(): sha256_bytes(path)
         for path in iter_promotable_files(sandbox_path)
     }
+
+
+def snapshot_promotable_file_bytes(sandbox_path: Path) -> dict[str, bytes]:
+    return {
+        path.relative_to(sandbox_path).as_posix(): path.read_bytes()
+        for path in iter_promotable_files(sandbox_path)
+    }
+
+
+def restore_promotable_file_bytes(sandbox_path: Path, before: dict[str, bytes]) -> None:
+    current_paths = {
+        path.relative_to(sandbox_path).as_posix(): path
+        for path in iter_promotable_files(sandbox_path)
+    }
+    for relative_path, path in current_paths.items():
+        if relative_path not in before:
+            path.unlink()
+    for relative_path, content in before.items():
+        target = sandbox_path / relative_path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(content)
 
 
 def detect_changed_files(sandbox_path: Path, before: dict[str, str]) -> list[str]:
@@ -317,17 +375,19 @@ def build_codex_prompt(
 ) -> str:
     return (
         "You are the real Codex fixing agent for this sandboxed repository.\n"
-        "Use your built-in file reading, file editing, shell, and completion tools to fix the confirmed bug.\n"
+        "Act as a patch proposer, not as the file writer.\n"
+        "You may inspect files if tools are available, but do not edit files with tools.\n"
         "Do not hardcode the report. Preserve unrelated behavior. Keep edits scoped to app/ and tests/.\n"
-        "The orchestrator will run tests, contract validation, and promotion after you finish.\n"
+        "The outer fixer process will write your proposed full-file content, run tests, contract validation, "
+        "and promotion after you finish.\n"
         "Before finishing, inspect the relevant files and make the smallest correct code change.\n"
         "Do not edit files outside app/ or tests/.\n"
-        "A bounded repository context is included below because nested tool reads/writes may be blocked.\n"
-        "If tools are blocked, use the included file contents and return full replacement content.\n"
-        "When done, respond with JSON only. If your file editing tools succeeded, use this shape:\n"
-        '{"summary":"short summary","changed_files":["relative/path.py"]}\n'
-        "If file editing tools are blocked by policy, return full replacement content instead:\n"
+        "A bounded repository context is included below because nested tool reads may be blocked.\n"
+        "Use the included file contents to produce complete replacement files.\n"
+        "When done, respond with JSON only using exactly this shape:\n"
         '{"summary":"short summary","changed_files":[{"path":"relative/path.py","content":"full file content"}]}\n\n'
+        "Each changed_files item must be an object with path and complete file content. "
+        "Do not return path strings, diffs, markdown, comments like 'keep the rest unchanged', or placeholders.\n\n"
         "Fix task JSON:\n"
         f"{json.dumps(task.model_dump(mode='json'), indent=2)}\n"
         "Previous validation feedback:\n"
@@ -372,20 +432,69 @@ def parse_codex_last_message(path: Path) -> dict[str, object]:
         return {"summary": path.read_text().strip()}
 
 
-def apply_codex_reported_file_contents(sandbox_path: Path, final_message: dict[str, object]) -> list[str]:
+def validate_full_replacement_content(sandbox_path: Path, relative_path: str, content: str) -> None:
+    stripped = content.strip()
+    if not stripped:
+        raise ValueError(f"{relative_path} replacement content is empty")
+
+    normalized = stripped.lower()
+    if any(marker in normalized for marker in PLACEHOLDER_CONTENT_MARKERS):
+        raise ValueError(f"{relative_path} replacement content looks like a placeholder, not a full file")
+
+    target = sandbox_path / relative_path
+    if target.exists() and target.is_file():
+        existing = target.read_text()
+        if (
+            len(existing) >= MIN_EXISTING_FILE_CHARS_FOR_RATIO_CHECK
+            and len(content) < int(len(existing) * MIN_REPLACEMENT_CHAR_RATIO)
+        ):
+            raise ValueError(
+                f"{relative_path} replacement content is too small to be a full replacement "
+                f"({len(content)} chars for existing {len(existing)} chars)"
+            )
+
+    if Path(relative_path).suffix == ".py":
+        try:
+            ast.parse(content)
+        except SyntaxError as exc:
+            raise ValueError(f"{relative_path} replacement content is not valid Python: {exc}") from exc
+
+
+def collect_reported_file_content_changes(
+    sandbox_path: Path,
+    final_message: dict[str, object],
+) -> list[tuple[str, str]]:
     raw_changes = final_message.get("changed_files")
     if not isinstance(raw_changes, list):
         raw_changes = final_message.get("proposed_changes")
     if not isinstance(raw_changes, list):
         return []
 
-    applied_paths: list[str] = []
+    changes: list[tuple[str, str]] = []
     for item in raw_changes:
         if not isinstance(item, dict):
-            continue
+            raise ValueError(
+                "Patch proposal must include changed_files objects with path and full content; "
+                f"got {type(item).__name__}."
+            )
         if "path" not in item or "content" not in item:
-            continue
-        applied_paths.append(write_sandbox_file(sandbox_path, item["path"], item["content"]))
+            raise ValueError("Patch proposal changed_files item requires path and content.")
+        relative_path = normalize_relative_path(item["path"])
+        if not is_promotable_path(relative_path):
+            raise ValueError(f"Refusing to write unsupported path: {relative_path}")
+        content = str(item["content"])
+        validate_full_replacement_content(sandbox_path, relative_path, content)
+        changes.append((relative_path, content))
+    if raw_changes and not changes:
+        raise ValueError("Patch proposal did not include any full replacement file contents.")
+    return changes
+
+
+def apply_codex_reported_file_contents(sandbox_path: Path, final_message: dict[str, object]) -> list[str]:
+    changes = collect_reported_file_content_changes(sandbox_path, final_message)
+    applied_paths: list[str] = []
+    for relative_path, content in changes:
+        applied_paths.append(write_sandbox_file(sandbox_path, relative_path, content))
     return sorted(set(applied_paths))
 
 
@@ -464,7 +573,7 @@ def login_codex_with_api_key(
         env=build_codex_api_key_env(codex_home, api_key),
     )
     if completed.returncode != 0:
-        output = completed.stdout + completed.stderr
+        output = combine_subprocess_output(completed.stdout, completed.stderr)
         raise RuntimeError(f"codex API-key login failed: {truncate_text(output, 1200)}")
 
 
@@ -527,11 +636,23 @@ def raw_gpt_response_artifact(
     )
 
 
-def should_run_raw_gpt_fallback(changed_files: list[str], codex_output: str) -> bool:
-    if changed_files:
-        return False
+def should_run_raw_gpt_fallback(
+    changed_files: list[str],
+    codex_output: str,
+    target_file: str | None = None,
+) -> bool:
     normalized = codex_output.lower()
-    return any(marker in normalized for marker in CODEX_WRITE_BLOCKED_MARKERS)
+    if changed_files:
+        if target_file and target_file not in changed_files:
+            return True
+        return False
+    invalid_reported_content = (
+        "codex reported invalid" in normalized
+        or "rejected reported file content" in normalized
+    )
+    if invalid_reported_content and (not target_file or target_file not in changed_files):
+        return True
+    return not changed_files or any(marker in normalized for marker in CODEX_WRITE_BLOCKED_MARKERS)
 
 
 def run_raw_gpt_fallback(
@@ -547,6 +668,7 @@ def run_raw_gpt_fallback(
     started = time.monotonic()
     before = snapshot_promotable_files(sandbox_path)
     api_key_env_name = ensure_openai_api_key_env()
+    request_path = output_dir / f"raw_gpt_fallback_request_{fix_attempt:03d}.json"
     response_path = output_dir / f"raw_gpt_fallback_{fix_attempt:03d}.json"
 
     record_event(
@@ -564,32 +686,69 @@ def run_raw_gpt_fallback(
             "model_name": RAW_GPT_FIXER_MODEL,
             "reasoning_effort": RAW_GPT_FIXER_REASONING_EFFORT,
             "timeout_seconds": RAW_GPT_FIXER_TIMEOUT_SECONDS,
+            "timeout_type": "subprocess_hard_timeout",
             "api_key_env_name": api_key_env_name,
             "trigger": "codex_no_changed_files_write_blocked",
         },
     )
 
     try:
-        client = OpenAIJsonClient(
-            model=RAW_GPT_FIXER_MODEL,
-            reasoning_effort=RAW_GPT_FIXER_REASONING_EFFORT,
-            timeout_seconds=RAW_GPT_FIXER_TIMEOUT_SECONDS,
+        write_json(
+            request_path,
+            {
+                "model": RAW_GPT_FIXER_MODEL,
+                "reasoning_effort": RAW_GPT_FIXER_REASONING_EFFORT,
+                "client_timeout_seconds": RAW_GPT_FIXER_TIMEOUT_SECONDS,
+                "instructions": (
+                    "You are a raw OpenAI fallback fixer. Produce full replacement file "
+                    "contents as strict JSON so the outer fixer can write the files."
+                ),
+                "prompt": build_raw_gpt_patch_prompt(
+                    task,
+                    sandbox_path,
+                    validation_feedback=validation_feedback,
+                    codex_summary=codex_summary,
+                ),
+            },
         )
-        response = client.create_json(
-            instructions=(
-                "You are a raw OpenAI fallback fixer. Produce full replacement file "
-                "contents as strict JSON so the outer fixer can write the files."
-            ),
-            prompt=build_raw_gpt_patch_prompt(
-                task,
-                sandbox_path,
-                validation_feedback=validation_feedback,
-                codex_summary=codex_summary,
-            ),
-        )
-        write_json(response_path, response)
+        try:
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "agents.fixing.raw_gpt_patch",
+                    "--request",
+                    str(request_path),
+                    "--response",
+                    str(response_path),
+                ],
+                cwd=sandbox_path,
+                text=True,
+                capture_output=True,
+                check=False,
+                timeout=RAW_GPT_FIXER_TIMEOUT_SECONDS,
+                env=os.environ.copy(),
+            )
+        except subprocess.TimeoutExpired as exc:
+            raise TimeoutError(
+                timeout_output(
+                    f"Raw GPT fallback timed out after {RAW_GPT_FIXER_TIMEOUT_SECONDS} seconds.",
+                    exc,
+                )
+            ) from exc
+        output = combine_subprocess_output(completed.stdout, completed.stderr)
+        if completed.returncode != 0:
+            raise RuntimeError(
+                f"Raw GPT fallback subprocess exited with {completed.returncode}: "
+                f"{truncate_text(output, 1200)}"
+            )
+        response = read_json(response_path)
         applied_paths = apply_codex_reported_file_contents(sandbox_path, response)
+        if not applied_paths:
+            raise ValueError("Raw GPT fallback did not return any full replacement file contents.")
         changed_files = detect_changed_files(sandbox_path, before)
+        if not changed_files:
+            raise ValueError("Raw GPT fallback returned file contents but did not change any promotable files.")
         summary = str(response.get("summary") or "Raw GPT fallback generated a patch.")
         duration_ms = int((time.monotonic() - started) * 1000)
         artifact = raw_gpt_response_artifact(response_path, duration_ms, fix_attempt)
@@ -612,6 +771,9 @@ def run_raw_gpt_fallback(
         return changed_files, summary, artifact
     except Exception as exc:
         duration_ms = int((time.monotonic() - started) * 1000)
+        failure_artifacts = []
+        if response_path.exists():
+            failure_artifacts.append(raw_gpt_response_artifact(response_path, duration_ms, fix_attempt))
         record_event(
             transcript_path=transcript_path,
             task=task,
@@ -619,6 +781,7 @@ def run_raw_gpt_fallback(
             status=EventStatus.FAILED,
             summary=f"Raw GPT fallback failed: {exc}",
             duration_ms=duration_ms,
+            artifacts=failure_artifacts,
             error=ErrorV1(
                 code=exc.__class__.__name__,
                 message=str(exc),
@@ -646,6 +809,7 @@ def run_codex_exec(
     api_key, api_key_env_name = get_openai_api_key()
     model_attempts = codex_model_attempts(model)
     before = snapshot_promotable_files(sandbox_path)
+    before_bytes = snapshot_promotable_file_bytes(sandbox_path)
 
     with tempfile.TemporaryDirectory(prefix="dywa-codex-api-") as codex_home_raw:
         codex_home = Path(codex_home_raw)
@@ -714,7 +878,7 @@ def run_codex_exec(
                     timeout=CODEX_EXEC_TIMEOUT_SECONDS,
                     env=codex_env,
                 )
-                output = completed.stdout + completed.stderr
+                output = combine_subprocess_output(completed.stdout, completed.stderr)
                 transcript_path.write_text(output)
                 duration_ms = int((time.monotonic() - started) * 1000)
                 if completed.returncode != 0:
@@ -742,9 +906,9 @@ def run_codex_exec(
                     )
                     raise RuntimeError(message)
             except subprocess.TimeoutExpired as exc:
-                output = (
-                    f"Codex exec timed out after {CODEX_EXEC_TIMEOUT_SECONDS} seconds.\n"
-                    f"{exc.stdout or ''}\n{exc.stderr or ''}"
+                output = timeout_output(
+                    f"Codex exec timed out after {CODEX_EXEC_TIMEOUT_SECONDS} seconds.",
+                    exc,
                 )
                 transcript_path.write_text(output)
                 duration_ms = int((time.monotonic() - started) * 1000)
@@ -771,8 +935,42 @@ def run_codex_exec(
                 )
                 raise TimeoutError(output) from exc
 
+            tool_changed_files = detect_changed_files(sandbox_path, before)
+            if tool_changed_files:
+                restore_promotable_file_bytes(sandbox_path, before_bytes)
+                record_event(
+                    transcript_path=output_dir / "transcript.jsonl",
+                    task=task,
+                    event_type="codex_tool_writes_discarded",
+                    status=EventStatus.COMPLETED,
+                    summary="Discarded direct Codex tool writes; outer fixer only applies structured patch proposals.",
+                    duration_ms=0,
+                    payload={
+                        "discarded_changed_files": tool_changed_files,
+                        "reason": "codex_runs_as_patch_proposer",
+                    },
+                )
+
             final_message = parse_codex_last_message(last_message_path)
-            applied_reported_paths = apply_codex_reported_file_contents(sandbox_path, final_message)
+            reported_content_error = None
+            try:
+                applied_reported_paths = apply_codex_reported_file_contents(sandbox_path, final_message)
+            except ValueError as exc:
+                applied_reported_paths = []
+                reported_content_error = str(exc)
+                record_event(
+                    transcript_path=output_dir / "transcript.jsonl",
+                    task=task,
+                    event_type="codex_reported_file_contents_rejected",
+                    status=EventStatus.FAILED,
+                    summary=f"Rejected reported file content from Codex: {reported_content_error}",
+                    duration_ms=0,
+                    payload={
+                        "reason": "invalid_full_replacement_content",
+                        "error": reported_content_error,
+                        "last_message": final_message,
+                    },
+                )
             if applied_reported_paths:
                 record_event(
                     transcript_path=output_dir / "transcript.jsonl",
@@ -788,6 +986,11 @@ def run_codex_exec(
                 )
             changed_files = detect_changed_files(sandbox_path, before)
             summary = str(final_message.get("summary") or "Codex completed the fix attempt.")
+            if reported_content_error:
+                summary = (
+                    f"{summary}\n"
+                    f"Codex reported invalid full replacement content: {reported_content_error}"
+                )
             duration_ms = int((time.monotonic() - started) * 1000)
             artifact = codex_transcript_artifact(
                 transcript_path,
@@ -811,6 +1014,7 @@ def run_codex_exec(
                     "model_attempt": model_attempt,
                     "auth_mode": "api_key",
                     "api_key_env_name": api_key_env_name,
+                    "reported_content_error": reported_content_error,
                 },
             )
             return changed_files, summary, artifact
@@ -937,34 +1141,86 @@ def fix_to_file(
                 duration_ms=0,
                 payload={"fix_attempt": fix_attempt},
             )
-            changed_files, summary, codex_artifact = run_codex_exec(
-                task=task,
-                sandbox_path=sandbox_path,
-                output_dir=output_dir,
-                model=model,
-                validation_feedback=validation_feedback,
-            )
-            artifacts.append(codex_artifact)
-            log(f"Fixing agent: Codex changed {len(changed_files)} file(s): {changed_files}.")
-            codex_output = summary
+            codex_output = ""
+            codex_error = None
             try:
-                codex_output += "\n" + Path(codex_artifact.uri).read_text()
-            except OSError:
-                pass
-            if should_run_raw_gpt_fallback(changed_files, codex_output):
-                changed_files, summary, raw_gpt_artifact = run_raw_gpt_fallback(
+                changed_files, summary, codex_artifact = run_codex_exec(
                     task=task,
                     sandbox_path=sandbox_path,
                     output_dir=output_dir,
+                    model=model,
                     validation_feedback=validation_feedback,
-                    codex_summary=codex_output,
-                    fix_attempt=fix_attempt,
                 )
-                artifacts.append(raw_gpt_artifact)
-                log(
-                    "Fixing agent: raw GPT fallback changed "
-                    f"{len(changed_files)} file(s): {changed_files}."
+                artifacts.append(codex_artifact)
+                log(f"Fixing agent: Codex changed {len(changed_files)} file(s): {changed_files}.")
+                codex_output = summary
+                try:
+                    codex_output += "\n" + Path(codex_artifact.uri).read_text()
+                except OSError:
+                    pass
+            except Exception as exc:
+                changed_files = []
+                codex_error = exc
+                summary = f"Codex fix attempt failed: {exc}"
+                codex_output = summary
+                record_event(
+                    transcript_path=transcript_path,
+                    task=task,
+                    event_type="codex_exec_exception_recovered",
+                    status=EventStatus.FAILED,
+                    summary="Codex exec failed; attempting raw fallback before ending the attempt.",
+                    duration_ms=0,
+                    error=ErrorV1(
+                        code=exc.__class__.__name__,
+                        message=str(exc),
+                        recoverable=True,
+                        details={"fix_attempt": fix_attempt},
+                    ),
                 )
+
+            if codex_error is not None or should_run_raw_gpt_fallback(
+                changed_files,
+                codex_output,
+                target_file=task.promotion_policy.target_file,
+            ):
+                try:
+                    changed_files, summary, raw_gpt_artifact = run_raw_gpt_fallback(
+                        task=task,
+                        sandbox_path=sandbox_path,
+                        output_dir=output_dir,
+                        validation_feedback=validation_feedback,
+                        codex_summary=codex_output,
+                        fix_attempt=fix_attempt,
+                    )
+                    artifacts.append(raw_gpt_artifact)
+                    log(
+                        "Fixing agent: raw GPT fallback changed "
+                        f"{len(changed_files)} file(s): {changed_files}."
+                    )
+                except Exception as exc:
+                    status = FixStatus.FAILED
+                    summary = f"{summary}\nRaw GPT fallback failed: {exc}"
+                    validation_feedback = (
+                        f"Attempt {fix_attempt} could not produce a patch.\n"
+                        f"Codex output/error excerpt:\n{truncate_text(codex_output, 12000)}\n"
+                        f"Raw fallback error: {exc}"
+                    )
+                    record_event(
+                        transcript_path=transcript_path,
+                        task=task,
+                        event_type="fix_attempt_failed",
+                        status=EventStatus.FAILED,
+                        summary=f"Fix attempt {fix_attempt} failed before tests.",
+                        duration_ms=0,
+                        payload={
+                            "fix_attempt": fix_attempt,
+                            "changed_files": changed_files,
+                            "codex_output": truncate_text(codex_output),
+                            "raw_fallback_error": str(exc),
+                        },
+                    )
+                    log(f"Fixing agent: attempt {fix_attempt} failed before tests.")
+                    continue
 
             tests, test_output = run_tests(sandbox_path, task.repo.test_command)
             final_test_output = test_output
@@ -1008,7 +1264,8 @@ def fix_to_file(
                     },
                 )
 
-            if tests.status == TestStatus.PASSED and contracts_ok:
+            target_file_changed = task.promotion_policy.target_file in changed_files
+            if tests.status == TestStatus.PASSED and contracts_ok and target_file_changed:
                 test_report_path = write_final_test_report_artifact(
                     output_dir,
                     final_test_output,
@@ -1044,12 +1301,15 @@ def fix_to_file(
                     "test_output": truncate_text(test_output),
                     "contract_validation_passed": contracts_ok,
                     "contract_output": truncate_text(contract_output),
+                    "target_file_changed": target_file_changed,
+                    "required_target_file": task.promotion_policy.target_file,
                 },
             )
             status = FixStatus.FAILED
             validation_feedback = (
                 f"Attempt {fix_attempt} did not pass validation.\n"
                 f"Changed files: {changed_files}\n"
+                f"Required target file changed: {target_file_changed} ({task.promotion_policy.target_file})\n"
                 f"Tests: {tests.model_dump(mode='json')}\n"
                 f"Test output excerpt:\n{truncate_text(test_output, 12000)}\n"
                 f"Contract validation passed: {contracts_ok}\n"
