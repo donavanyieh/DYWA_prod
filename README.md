@@ -1,3 +1,6 @@
+# Link to full video of how this works
+https://drive.google.com/drive/u/3/folders/10td1dnbrjoIwjUTGNdBJRCP0oyTmKSch
+
 # Adaptive Healing Engine
 
 This repository is the first live-runner slice of the adaptive healing engine.
