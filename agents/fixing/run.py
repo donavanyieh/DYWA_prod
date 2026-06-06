@@ -31,6 +31,8 @@ from shared.time import utc_now
 
 
 CODEX_FIXER_MODEL = "gpt-5.3-codex"
+CODEX_FIXER_FALLBACK_MODELS = ("gpt-5-codex",)
+CODEX_UNSUPPORTED_CHATGPT_MODEL_MARKER = "not supported when using Codex with a ChatGPT account"
 MAX_FIX_ATTEMPTS = 3
 CODEX_EXEC_TIMEOUT_SECONDS = 600
 TEST_TIMEOUT_SECONDS = 60
@@ -298,67 +300,39 @@ def resolve_codex_executable() -> str:
     )
 
 
-def run_codex_exec(
-    *,
-    task: FixTaskV1,
-    sandbox_path: Path,
-    output_dir: Path,
+def codex_model_attempts(model: ModelConfigV1) -> list[ModelConfigV1]:
+    model_names = [model.model_name]
+    if model.model_name == CODEX_FIXER_MODEL:
+        model_names.extend(name for name in CODEX_FIXER_FALLBACK_MODELS if name not in model_names)
+    return [
+        ModelConfigV1(
+            provider=model.provider,
+            model_name=model_name,
+            mode=model.mode,
+            reasoning_effort=model.reasoning_effort,
+        )
+        for model_name in model_names
+    ]
+
+
+def is_chatgpt_account_model_unsupported(output: str) -> bool:
+    return (
+        CODEX_UNSUPPORTED_CHATGPT_MODEL_MARKER in output
+        or ("invalid_request_error" in output and "model is not supported" in output)
+    )
+
+
+def safe_model_filename(model_name: str) -> str:
+    return re.sub(r"[^A-Za-z0-9_.-]+", "_", model_name)
+
+
+def codex_transcript_artifact(
+    transcript_path: Path,
     model: ModelConfigV1,
-) -> tuple[list[str], str, ArtifactRefV1]:
-    transcript_path = output_dir / "codex_exec_events.jsonl"
-    last_message_path = output_dir / "codex_last_message.json"
-    prompt = build_codex_prompt(task)
-    command = build_codex_command(
-        codex_executable=resolve_codex_executable(),
-        sandbox_path=sandbox_path,
-        model=model,
-        last_message_path=last_message_path,
-    )
-
-    before = snapshot_promotable_files(sandbox_path)
-    started = time.monotonic()
-    record_event(
-        transcript_path=output_dir / "transcript.jsonl",
-        task=task,
-        event_type="codex_exec_started",
-        status=EventStatus.STARTED,
-        summary=f"Started real Codex exec with {model.model_name}.",
-        duration_ms=0,
-        payload={
-            "command": command,
-            "timeout_seconds": CODEX_EXEC_TIMEOUT_SECONDS,
-            "sandbox_path": str(sandbox_path),
-        },
-    )
-
-    try:
-        completed = subprocess.run(
-            command,
-            cwd=sandbox_path,
-            input=prompt,
-            text=True,
-            capture_output=True,
-            check=False,
-            timeout=CODEX_EXEC_TIMEOUT_SECONDS,
-        )
-        output = completed.stdout + completed.stderr
-        transcript_path.write_text(output)
-        if completed.returncode != 0:
-            raise RuntimeError(
-                f"codex exec exited with {completed.returncode}: {truncate_text(output, 1200)}"
-            )
-    except subprocess.TimeoutExpired as exc:
-        output = (
-            f"Codex exec timed out after {CODEX_EXEC_TIMEOUT_SECONDS} seconds.\n"
-            f"{exc.stdout or ''}\n{exc.stderr or ''}"
-        )
-        transcript_path.write_text(output)
-        raise TimeoutError(output) from exc
-
-    changed_files = detect_changed_files(sandbox_path, before)
-    final_message = parse_codex_last_message(last_message_path)
-    summary = str(final_message.get("summary") or "Codex completed the fix attempt.")
-    artifact = ArtifactRefV1(
+    duration_ms: int,
+    model_attempt: int,
+) -> ArtifactRefV1:
+    return ArtifactRefV1(
         artifact_id=f"art_{uuid4().hex[:10]}",
         type="text_log",
         uri=str(transcript_path),
@@ -368,23 +342,174 @@ def run_codex_exec(
         metadata={
             "kind": "codex_exec_events",
             "model_name": model.model_name,
-            "duration_ms": int((time.monotonic() - started) * 1000),
+            "model_attempt": model_attempt,
+            "duration_ms": duration_ms,
         },
     )
-    record_event(
-        transcript_path=output_dir / "transcript.jsonl",
-        task=task,
-        event_type="codex_exec_completed",
-        status=EventStatus.COMPLETED,
-        summary=summary,
-        duration_ms=int((time.monotonic() - started) * 1000),
-        artifacts=[artifact],
-        payload={
-            "changed_files": changed_files,
-            "last_message": final_message,
-        },
-    )
-    return changed_files, summary, artifact
+
+
+def run_codex_exec(
+    *,
+    task: FixTaskV1,
+    sandbox_path: Path,
+    output_dir: Path,
+    model: ModelConfigV1,
+) -> tuple[list[str], str, ArtifactRefV1]:
+    prompt = build_codex_prompt(task)
+    codex_executable = resolve_codex_executable()
+    model_attempts = codex_model_attempts(model)
+    before = snapshot_promotable_files(sandbox_path)
+
+    for model_attempt, active_model in enumerate(model_attempts, start=1):
+        model_suffix = safe_model_filename(active_model.model_name)
+        transcript_path = output_dir / f"codex_exec_events_{model_attempt:02d}_{model_suffix}.jsonl"
+        last_message_path = output_dir / f"codex_last_message_{model_attempt:02d}_{model_suffix}.json"
+        command = build_codex_command(
+            codex_executable=codex_executable,
+            sandbox_path=sandbox_path,
+            model=active_model,
+            last_message_path=last_message_path,
+        )
+
+        started = time.monotonic()
+        record_event(
+            transcript_path=output_dir / "transcript.jsonl",
+            task=task,
+            event_type="codex_exec_started",
+            status=EventStatus.STARTED,
+            summary=f"Started real Codex exec with {active_model.model_name}.",
+            duration_ms=0,
+            payload={
+                "command": command,
+                "timeout_seconds": CODEX_EXEC_TIMEOUT_SECONDS,
+                "sandbox_path": str(sandbox_path),
+                "requested_model_name": model.model_name,
+                "model_name": active_model.model_name,
+                "model_attempt": model_attempt,
+                "model_attempts_total": len(model_attempts),
+            },
+        )
+
+        try:
+            completed = subprocess.run(
+                command,
+                cwd=sandbox_path,
+                input=prompt,
+                text=True,
+                capture_output=True,
+                check=False,
+                timeout=CODEX_EXEC_TIMEOUT_SECONDS,
+            )
+            output = completed.stdout + completed.stderr
+            transcript_path.write_text(output)
+            duration_ms = int((time.monotonic() - started) * 1000)
+            if completed.returncode != 0:
+                artifact = codex_transcript_artifact(
+                    transcript_path,
+                    active_model,
+                    duration_ms,
+                    model_attempt,
+                )
+                message = f"codex exec exited with {completed.returncode}: {truncate_text(output, 1200)}"
+                if is_chatgpt_account_model_unsupported(output) and model_attempt < len(model_attempts):
+                    next_model = model_attempts[model_attempt]
+                    record_event(
+                        transcript_path=output_dir / "transcript.jsonl",
+                        task=task,
+                        event_type="codex_exec_model_fallback",
+                        status=EventStatus.SKIPPED,
+                        summary=(
+                            f"Codex rejected {active_model.model_name} for this account; "
+                            f"retrying with {next_model.model_name}."
+                        ),
+                        duration_ms=duration_ms,
+                        artifacts=[artifact],
+                        payload={
+                            "failed_model_name": active_model.model_name,
+                            "fallback_model_name": next_model.model_name,
+                            "output_excerpt": truncate_text(output, 1200),
+                        },
+                    )
+                    log(
+                        f"Fixing agent: Codex rejected {active_model.model_name}; "
+                        f"falling back to {next_model.model_name}."
+                    )
+                    continue
+                record_event(
+                    transcript_path=output_dir / "transcript.jsonl",
+                    task=task,
+                    event_type="codex_exec_failed",
+                    status=EventStatus.FAILED,
+                    summary=message,
+                    duration_ms=duration_ms,
+                    artifacts=[artifact],
+                    error=ErrorV1(
+                        code="codex_exec_failed",
+                        message=message,
+                        recoverable=model_attempt < len(model_attempts),
+                        details={"model_name": active_model.model_name},
+                    ),
+                )
+                raise RuntimeError(message)
+        except subprocess.TimeoutExpired as exc:
+            output = (
+                f"Codex exec timed out after {CODEX_EXEC_TIMEOUT_SECONDS} seconds.\n"
+                f"{exc.stdout or ''}\n{exc.stderr or ''}"
+            )
+            transcript_path.write_text(output)
+            duration_ms = int((time.monotonic() - started) * 1000)
+            artifact = codex_transcript_artifact(
+                transcript_path,
+                active_model,
+                duration_ms,
+                model_attempt,
+            )
+            record_event(
+                transcript_path=output_dir / "transcript.jsonl",
+                task=task,
+                event_type="codex_exec_failed",
+                status=EventStatus.FAILED,
+                summary=f"Codex exec timed out with {active_model.model_name}.",
+                duration_ms=duration_ms,
+                artifacts=[artifact],
+                error=ErrorV1(
+                    code="codex_exec_timeout",
+                    message=truncate_text(output, 1200),
+                    recoverable=False,
+                    details={"model_name": active_model.model_name},
+                ),
+            )
+            raise TimeoutError(output) from exc
+
+        changed_files = detect_changed_files(sandbox_path, before)
+        final_message = parse_codex_last_message(last_message_path)
+        summary = str(final_message.get("summary") or "Codex completed the fix attempt.")
+        duration_ms = int((time.monotonic() - started) * 1000)
+        artifact = codex_transcript_artifact(
+            transcript_path,
+            active_model,
+            duration_ms,
+            model_attempt,
+        )
+        record_event(
+            transcript_path=output_dir / "transcript.jsonl",
+            task=task,
+            event_type="codex_exec_completed",
+            status=EventStatus.COMPLETED,
+            summary=summary,
+            duration_ms=duration_ms,
+            artifacts=[artifact],
+            payload={
+                "changed_files": changed_files,
+                "last_message": final_message,
+                "requested_model_name": model.model_name,
+                "model_name": active_model.model_name,
+                "model_attempt": model_attempt,
+            },
+        )
+        return changed_files, summary, artifact
+
+    raise RuntimeError("codex exec did not run any model attempts")
 
 
 def build_codex_command(

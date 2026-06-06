@@ -17,7 +17,9 @@ from shared.contracts.models import (
 from shared.ai.gpt5_client import _extract_json
 from agents.fixing.run import (
     build_codex_command,
+    codex_model_attempts,
     detect_changed_files,
+    is_chatgpt_account_model_unsupported,
     parse_pytest_counts,
     record_event,
     snapshot_promotable_files,
@@ -136,6 +138,24 @@ def test_codex_exec_command_uses_supported_noninteractive_flags(tmp_path) -> Non
     assert "-a" not in command
     assert "--color" in command
     assert command[-1] == "-"
+
+
+def test_codex_model_attempts_fall_back_for_chatgpt_account() -> None:
+    attempts = codex_model_attempts(
+        ModelConfigV1(model_name="gpt-5.3-codex", reasoning_effort="high")
+    )
+
+    assert [attempt.model_name for attempt in attempts] == ["gpt-5.3-codex", "gpt-5-codex"]
+    assert [attempt.reasoning_effort for attempt in attempts] == ["high", "high"]
+
+
+def test_codex_unsupported_chatgpt_model_error_detected() -> None:
+    output = (
+        '{"type":"error","status":400,"error":{"type":"invalid_request_error",'
+        '"message":"The \'gpt-5.3-codex\' model is not supported when using Codex with a ChatGPT account."}}'
+    )
+
+    assert is_chatgpt_account_model_unsupported(output)
 
 
 def test_persona_action_parse_errors_fall_back_to_finish(tmp_path) -> None:
