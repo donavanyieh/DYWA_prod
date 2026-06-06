@@ -14,6 +14,7 @@ import time
 from pathlib import Path
 from uuid import uuid4
 
+from shared.ai.gpt5_client import OpenAIJsonClient
 from shared.contracts.models import (
     ArtifactRefV1,
     ErrorV1,
@@ -33,13 +34,32 @@ from shared.time import utc_now
 
 
 CODEX_FIXER_MODEL = "gpt-5.3-codex"
+RAW_GPT_FIXER_MODEL = "gpt-5.5"
+RAW_GPT_FIXER_REASONING_EFFORT = "high"
 OPENAI_API_KEY_ENV_NAMES = ("OPENAI_API_KEY", "OPENAIKEY", "OPENAI_KEY")
 MAX_FIX_ATTEMPTS = 3
 CODEX_API_KEY_LOGIN_TIMEOUT_SECONDS = 30
-CODEX_EXEC_TIMEOUT_SECONDS = 600
+CODEX_EXEC_TIMEOUT_SECONDS = 240
+RAW_GPT_FIXER_TIMEOUT_SECONDS = 240
 TEST_TIMEOUT_SECONDS = 60
 CONTRACT_VALIDATION_TIMEOUT_SECONDS = 30
 MAX_HISTORY_TEXT_CHARS = 8000
+MAX_PROMPT_FILE_CHARS = 50000
+MAX_REPOSITORY_CONTEXT_CHARS = 140000
+CODEX_WRITE_BLOCKED_MARKERS = (
+    "read-only sandbox",
+    "writing is blocked",
+    "write is blocked",
+    "read permission",
+    "permission denied",
+    "tool reads/writes",
+    "tools are blocked",
+    "file editing tools are blocked",
+    "could not inspect",
+    "could not modify",
+    "unable to edit",
+    "no changed files",
+)
 
 IGNORED_COPY_DIRS = {
     ".git",
@@ -259,7 +279,42 @@ def detect_changed_files(sandbox_path: Path, before: dict[str, str]) -> list[str
     return sorted(changed)
 
 
-def build_codex_prompt(task: FixTaskV1) -> str:
+def repository_context_for_prompt(sandbox_path: Path, task: FixTaskV1) -> dict[str, str]:
+    candidate_paths = [
+        task.repo.entrypoint,
+        "app/buggy_main_seed.py",
+        "configs/run_config.json",
+        "tests/test_shop_smoke.py",
+        "tests/test_group_buy_wiring.py",
+    ]
+    context: dict[str, str] = {}
+    used_chars = 0
+    for raw_path in candidate_paths:
+        try:
+            relative_path = normalize_relative_path(raw_path)
+        except ValueError:
+            continue
+        path = sandbox_path / relative_path
+        if not path.exists() or not path.is_file():
+            continue
+        content = path.read_text()
+        if len(content) > MAX_PROMPT_FILE_CHARS:
+            content = truncate_text(content, MAX_PROMPT_FILE_CHARS)
+        if used_chars + len(content) > MAX_REPOSITORY_CONTEXT_CHARS:
+            remaining_chars = MAX_REPOSITORY_CONTEXT_CHARS - used_chars
+            if remaining_chars <= 0:
+                break
+            content = truncate_text(content, remaining_chars)
+        context[relative_path] = content
+        used_chars += len(content)
+    return context
+
+
+def build_codex_prompt(
+    task: FixTaskV1,
+    sandbox_path: Path,
+    validation_feedback: str | None = None,
+) -> str:
     return (
         "You are the real Codex fixing agent for this sandboxed repository.\n"
         "Use your built-in file reading, file editing, shell, and completion tools to fix the confirmed bug.\n"
@@ -267,10 +322,44 @@ def build_codex_prompt(task: FixTaskV1) -> str:
         "The orchestrator will run tests, contract validation, and promotion after you finish.\n"
         "Before finishing, inspect the relevant files and make the smallest correct code change.\n"
         "Do not edit files outside app/ or tests/.\n"
-        "When done, respond with JSON only using this shape:\n"
-        '{"summary":"short summary","changed_files":["relative/path.py"]}\n\n'
+        "A bounded repository context is included below because nested tool reads/writes may be blocked.\n"
+        "If tools are blocked, use the included file contents and return full replacement content.\n"
+        "When done, respond with JSON only. If your file editing tools succeeded, use this shape:\n"
+        '{"summary":"short summary","changed_files":["relative/path.py"]}\n'
+        "If file editing tools are blocked by policy, return full replacement content instead:\n"
+        '{"summary":"short summary","changed_files":[{"path":"relative/path.py","content":"full file content"}]}\n\n'
         "Fix task JSON:\n"
         f"{json.dumps(task.model_dump(mode='json'), indent=2)}\n"
+        "Previous validation feedback:\n"
+        f"{validation_feedback or 'None'}\n"
+        "Repository context JSON:\n"
+        f"{json.dumps(repository_context_for_prompt(sandbox_path, task), indent=2)}\n"
+    )
+
+
+def build_raw_gpt_patch_prompt(
+    task: FixTaskV1,
+    sandbox_path: Path,
+    *,
+    validation_feedback: str | None,
+    codex_summary: str,
+) -> str:
+    return (
+        "Codex exec was attempted first, but its file tools appear to be blocked.\n"
+        "Generate a genuine source patch from the confirmed bug report and repository context.\n"
+        "Do not hardcode success. Preserve unrelated behavior and keep edits scoped to app/ and tests/.\n"
+        "Return JSON only with this exact shape:\n"
+        '{"summary":"short summary","changed_files":[{"path":"relative/path.py","content":"full file content"}]}\n\n'
+        "Every changed_files item must include full replacement content for the file.\n"
+        "Do not return diffs, markdown, commentary, or paths outside app/ or tests/.\n\n"
+        "Fix task JSON:\n"
+        f"{json.dumps(task.model_dump(mode='json'), indent=2)}\n"
+        "Codex blocked/failed summary:\n"
+        f"{truncate_text(codex_summary, 12000)}\n"
+        "Previous validation feedback:\n"
+        f"{validation_feedback or 'None'}\n"
+        "Repository context JSON:\n"
+        f"{json.dumps(repository_context_for_prompt(sandbox_path, task), indent=2)}\n"
     )
 
 
@@ -281,6 +370,23 @@ def parse_codex_last_message(path: Path) -> dict[str, object]:
         return json.loads(path.read_text())
     except json.JSONDecodeError:
         return {"summary": path.read_text().strip()}
+
+
+def apply_codex_reported_file_contents(sandbox_path: Path, final_message: dict[str, object]) -> list[str]:
+    raw_changes = final_message.get("changed_files")
+    if not isinstance(raw_changes, list):
+        raw_changes = final_message.get("proposed_changes")
+    if not isinstance(raw_changes, list):
+        return []
+
+    applied_paths: list[str] = []
+    for item in raw_changes:
+        if not isinstance(item, dict):
+            continue
+        if "path" not in item or "content" not in item:
+            continue
+        applied_paths.append(write_sandbox_file(sandbox_path, item["path"], item["content"]))
+    return sorted(set(applied_paths))
 
 
 def resolve_codex_executable() -> str:
@@ -310,6 +416,13 @@ def get_openai_api_key() -> tuple[str, str]:
     raise RuntimeError(
         "Fixing agent requires an OpenAI API key in OPENAI_API_KEY or OPENAIKEY for Codex exec."
     )
+
+
+def ensure_openai_api_key_env() -> str:
+    api_key, api_key_env_name = get_openai_api_key()
+    if not os.environ.get("OPENAI_API_KEY"):
+        os.environ["OPENAI_API_KEY"] = api_key
+    return api_key_env_name
 
 
 def build_codex_api_key_env(codex_home: Path, api_key: str) -> dict[str, str]:
@@ -392,14 +505,143 @@ def codex_transcript_artifact(
     )
 
 
+def raw_gpt_response_artifact(
+    response_path: Path,
+    duration_ms: int,
+    fix_attempt: int,
+) -> ArtifactRefV1:
+    return ArtifactRefV1(
+        artifact_id=f"art_{uuid4().hex[:10]}",
+        type="text_log",
+        uri=str(response_path),
+        mime_type="application/json",
+        created_at=utc_now(),
+        sha256=None,
+        metadata={
+            "kind": "raw_gpt_fallback_response",
+            "model_name": RAW_GPT_FIXER_MODEL,
+            "reasoning_effort": RAW_GPT_FIXER_REASONING_EFFORT,
+            "fix_attempt": fix_attempt,
+            "duration_ms": duration_ms,
+        },
+    )
+
+
+def should_run_raw_gpt_fallback(changed_files: list[str], codex_output: str) -> bool:
+    if changed_files:
+        return False
+    normalized = codex_output.lower()
+    return any(marker in normalized for marker in CODEX_WRITE_BLOCKED_MARKERS)
+
+
+def run_raw_gpt_fallback(
+    *,
+    task: FixTaskV1,
+    sandbox_path: Path,
+    output_dir: Path,
+    validation_feedback: str | None,
+    codex_summary: str,
+    fix_attempt: int,
+) -> tuple[list[str], str, ArtifactRefV1]:
+    transcript_path = output_dir / "transcript.jsonl"
+    started = time.monotonic()
+    before = snapshot_promotable_files(sandbox_path)
+    api_key_env_name = ensure_openai_api_key_env()
+    response_path = output_dir / f"raw_gpt_fallback_{fix_attempt:03d}.json"
+
+    record_event(
+        transcript_path=transcript_path,
+        task=task,
+        event_type="raw_gpt_fallback_started",
+        status=EventStatus.STARTED,
+        summary=(
+            f"Started raw OpenAI fallback with {RAW_GPT_FIXER_MODEL} after Codex "
+            "returned no writable changes."
+        ),
+        duration_ms=0,
+        payload={
+            "fix_attempt": fix_attempt,
+            "model_name": RAW_GPT_FIXER_MODEL,
+            "reasoning_effort": RAW_GPT_FIXER_REASONING_EFFORT,
+            "timeout_seconds": RAW_GPT_FIXER_TIMEOUT_SECONDS,
+            "api_key_env_name": api_key_env_name,
+            "trigger": "codex_no_changed_files_write_blocked",
+        },
+    )
+
+    try:
+        client = OpenAIJsonClient(
+            model=RAW_GPT_FIXER_MODEL,
+            reasoning_effort=RAW_GPT_FIXER_REASONING_EFFORT,
+            timeout_seconds=RAW_GPT_FIXER_TIMEOUT_SECONDS,
+        )
+        response = client.create_json(
+            instructions=(
+                "You are a raw OpenAI fallback fixer. Produce full replacement file "
+                "contents as strict JSON so the outer fixer can write the files."
+            ),
+            prompt=build_raw_gpt_patch_prompt(
+                task,
+                sandbox_path,
+                validation_feedback=validation_feedback,
+                codex_summary=codex_summary,
+            ),
+        )
+        write_json(response_path, response)
+        applied_paths = apply_codex_reported_file_contents(sandbox_path, response)
+        changed_files = detect_changed_files(sandbox_path, before)
+        summary = str(response.get("summary") or "Raw GPT fallback generated a patch.")
+        duration_ms = int((time.monotonic() - started) * 1000)
+        artifact = raw_gpt_response_artifact(response_path, duration_ms, fix_attempt)
+        record_event(
+            transcript_path=transcript_path,
+            task=task,
+            event_type="raw_gpt_fallback_completed",
+            status=EventStatus.COMPLETED,
+            summary=summary,
+            duration_ms=duration_ms,
+            artifacts=[artifact],
+            payload={
+                "fix_attempt": fix_attempt,
+                "model_name": RAW_GPT_FIXER_MODEL,
+                "reasoning_effort": RAW_GPT_FIXER_REASONING_EFFORT,
+                "applied_paths": applied_paths,
+                "changed_files": changed_files,
+            },
+        )
+        return changed_files, summary, artifact
+    except Exception as exc:
+        duration_ms = int((time.monotonic() - started) * 1000)
+        record_event(
+            transcript_path=transcript_path,
+            task=task,
+            event_type="raw_gpt_fallback_failed",
+            status=EventStatus.FAILED,
+            summary=f"Raw GPT fallback failed: {exc}",
+            duration_ms=duration_ms,
+            error=ErrorV1(
+                code=exc.__class__.__name__,
+                message=str(exc),
+                recoverable=True,
+                details={
+                    "model_name": RAW_GPT_FIXER_MODEL,
+                    "reasoning_effort": RAW_GPT_FIXER_REASONING_EFFORT,
+                    "fix_attempt": fix_attempt,
+                },
+            ),
+        )
+        raise
+
+
 def run_codex_exec(
     *,
     task: FixTaskV1,
     sandbox_path: Path,
     output_dir: Path,
     model: ModelConfigV1,
+    validation_feedback: str | None = None,
 ) -> tuple[list[str], str, ArtifactRefV1]:
-    prompt = build_codex_prompt(task)
+    prompt = build_codex_prompt(task, sandbox_path, validation_feedback)
     codex_executable = resolve_codex_executable()
     api_key, api_key_env_name = get_openai_api_key()
     model_attempts = codex_model_attempts(model)
@@ -512,31 +754,6 @@ def run_codex_exec(
                     duration_ms,
                     model_attempt,
                 )
-                message = f"codex exec exited with {completed.returncode}: {truncate_text(output, 1200)}"
-                if is_chatgpt_account_model_unsupported(output) and model_attempt < len(model_attempts):
-                    next_model = model_attempts[model_attempt]
-                    record_event(
-                        transcript_path=output_dir / "transcript.jsonl",
-                        task=task,
-                        event_type="codex_exec_model_fallback",
-                        status=EventStatus.SKIPPED,
-                        summary=(
-                            f"Codex rejected {active_model.model_name} for this account; "
-                            f"retrying with {next_model.model_name}."
-                        ),
-                        duration_ms=duration_ms,
-                        artifacts=[artifact],
-                        payload={
-                            "failed_model_name": active_model.model_name,
-                            "fallback_model_name": next_model.model_name,
-                            "output_excerpt": truncate_text(output, 1200),
-                        },
-                    )
-                    log(
-                        f"Fixing agent: Codex rejected {active_model.model_name}; "
-                        f"falling back to {next_model.model_name}."
-                    )
-                    continue
                 record_event(
                     transcript_path=output_dir / "transcript.jsonl",
                     task=task,
@@ -554,8 +771,22 @@ def run_codex_exec(
                 )
                 raise TimeoutError(output) from exc
 
-            changed_files = detect_changed_files(sandbox_path, before)
             final_message = parse_codex_last_message(last_message_path)
+            applied_reported_paths = apply_codex_reported_file_contents(sandbox_path, final_message)
+            if applied_reported_paths:
+                record_event(
+                    transcript_path=output_dir / "transcript.jsonl",
+                    task=task,
+                    event_type="codex_reported_file_contents_applied",
+                    status=EventStatus.COMPLETED,
+                    summary="Applied full replacement file content returned by Codex.",
+                    duration_ms=0,
+                    payload={
+                        "changed_files": applied_reported_paths,
+                        "reason": "codex_tool_writes_unavailable",
+                    },
+                )
+            changed_files = detect_changed_files(sandbox_path, before)
             summary = str(final_message.get("summary") or "Codex completed the fix attempt.")
             duration_ms = int((time.monotonic() - started) * 1000)
             artifact = codex_transcript_artifact(
@@ -676,6 +907,7 @@ def fix_to_file(
                 "output_dir": str(output_dir),
                 "retry_policy": {
                     "codex_exec_timeout_seconds": CODEX_EXEC_TIMEOUT_SECONDS,
+                    "raw_gpt_fallback_timeout_seconds": RAW_GPT_FIXER_TIMEOUT_SECONDS,
                     "test_timeout_seconds": TEST_TIMEOUT_SECONDS,
                 },
             },
@@ -693,6 +925,7 @@ def fix_to_file(
 
         final_test_output = ""
         last_fix_attempt = 0
+        validation_feedback = None
         for fix_attempt in range(1, MAX_FIX_ATTEMPTS + 1):
             last_fix_attempt = fix_attempt
             record_event(
@@ -709,9 +942,29 @@ def fix_to_file(
                 sandbox_path=sandbox_path,
                 output_dir=output_dir,
                 model=model,
+                validation_feedback=validation_feedback,
             )
             artifacts.append(codex_artifact)
             log(f"Fixing agent: Codex changed {len(changed_files)} file(s): {changed_files}.")
+            codex_output = summary
+            try:
+                codex_output += "\n" + Path(codex_artifact.uri).read_text()
+            except OSError:
+                pass
+            if should_run_raw_gpt_fallback(changed_files, codex_output):
+                changed_files, summary, raw_gpt_artifact = run_raw_gpt_fallback(
+                    task=task,
+                    sandbox_path=sandbox_path,
+                    output_dir=output_dir,
+                    validation_feedback=validation_feedback,
+                    codex_summary=codex_output,
+                    fix_attempt=fix_attempt,
+                )
+                artifacts.append(raw_gpt_artifact)
+                log(
+                    "Fixing agent: raw GPT fallback changed "
+                    f"{len(changed_files)} file(s): {changed_files}."
+                )
 
             tests, test_output = run_tests(sandbox_path, task.repo.test_command)
             final_test_output = test_output
@@ -794,6 +1047,14 @@ def fix_to_file(
                 },
             )
             status = FixStatus.FAILED
+            validation_feedback = (
+                f"Attempt {fix_attempt} did not pass validation.\n"
+                f"Changed files: {changed_files}\n"
+                f"Tests: {tests.model_dump(mode='json')}\n"
+                f"Test output excerpt:\n{truncate_text(test_output, 12000)}\n"
+                f"Contract validation passed: {contracts_ok}\n"
+                f"Contract output excerpt:\n{truncate_text(contract_output, 4000)}"
+            )
             log(f"Fixing agent: attempt {fix_attempt} did not pass all gates.")
     except Exception as exc:
         status = FixStatus.FAILED

@@ -16,12 +16,19 @@ from shared.contracts.models import (
 )
 from shared.ai.gpt5_client import _extract_json
 from agents.fixing.run import (
+    RAW_GPT_FIXER_MODEL,
+    RAW_GPT_FIXER_REASONING_EFFORT,
+    apply_codex_reported_file_contents,
+    build_codex_prompt,
     build_codex_command,
+    build_raw_gpt_patch_prompt,
     codex_model_attempts,
     detect_changed_files,
+    ensure_openai_api_key_env,
     get_openai_api_key,
     parse_pytest_counts,
     record_event,
+    should_run_raw_gpt_fallback,
     snapshot_promotable_files,
     write_sandbox_file,
 )
@@ -126,6 +133,49 @@ def test_detect_changed_files_reports_promotable_edits(tmp_path) -> None:
     assert detect_changed_files(tmp_path, before) == ["app/main.py"]
 
 
+def test_apply_codex_reported_file_contents_writes_promotable_files(tmp_path) -> None:
+    applied = apply_codex_reported_file_contents(
+        tmp_path,
+        {
+            "changed_files": [
+                {
+                    "path": "app/main.py",
+                    "content": "value = 2\n",
+                },
+                "tests/test_shop_smoke.py",
+            ]
+        },
+    )
+
+    assert applied == ["app/main.py"]
+    assert (tmp_path / "app" / "main.py").read_text() == "value = 2\n"
+
+
+def test_codex_prompt_includes_repository_context_for_blocked_tools(tmp_path) -> None:
+    task = build_task()
+    sandbox = tmp_path / "sandbox"
+    app_dir = sandbox / "app"
+    tests_dir = sandbox / "tests"
+    configs_dir = sandbox / "configs"
+    app_dir.mkdir(parents=True)
+    tests_dir.mkdir()
+    configs_dir.mkdir()
+    (app_dir / "main.py").write_text("def calculate_cart_total(cart):\n    return 0\n")
+    (tests_dir / "test_shop_smoke.py").write_text("def test_total():\n    assert True\n")
+    (configs_dir / "run_config.json").write_text("{}\n")
+
+    prompt = build_codex_prompt(
+        task,
+        sandbox,
+        validation_feedback="Attempt 1 failed because changed_files was empty.",
+    )
+
+    assert "Repository context JSON" in prompt
+    assert "app/main.py" in prompt
+    assert "def calculate_cart_total" in prompt
+    assert "Attempt 1 failed" in prompt
+
+
 def test_codex_exec_command_uses_supported_noninteractive_flags(tmp_path) -> None:
     command = build_codex_command(
         codex_executable="codex.exe",
@@ -160,6 +210,50 @@ def test_get_openai_api_key_accepts_openaikey_env(monkeypatch) -> None:
     monkeypatch.setenv("OPENAIKEY", "sk-test")
 
     assert get_openai_api_key() == ("sk-test", "OPENAIKEY")
+
+
+def test_ensure_openai_api_key_env_bridges_openaikey_for_raw_client(monkeypatch) -> None:
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.setenv("OPENAIKEY", "sk-test")
+
+    assert ensure_openai_api_key_env() == "OPENAIKEY"
+    assert get_openai_api_key() == ("sk-test", "OPENAI_API_KEY")
+
+
+def test_raw_gpt_fallback_uses_requested_model_and_high_reasoning() -> None:
+    assert RAW_GPT_FIXER_MODEL == "gpt-5.5"
+    assert RAW_GPT_FIXER_REASONING_EFFORT == "high"
+
+
+def test_raw_gpt_fallback_triggers_when_codex_tools_are_blocked() -> None:
+    assert should_run_raw_gpt_fallback(
+        [],
+        "patch rejected: writing is blocked by read-only sandbox",
+    )
+    assert not should_run_raw_gpt_fallback(
+        ["app/main.py"],
+        "patch rejected: writing is blocked by read-only sandbox",
+    )
+    assert not should_run_raw_gpt_fallback([], "Codex made no changes because no bug exists.")
+
+
+def test_raw_gpt_patch_prompt_requires_full_replacement_content(tmp_path) -> None:
+    task = build_task()
+    sandbox = tmp_path / "sandbox"
+    app_dir = sandbox / "app"
+    app_dir.mkdir(parents=True)
+    (app_dir / "main.py").write_text("def calculate_cart_total(cart):\n    return 0\n")
+
+    prompt = build_raw_gpt_patch_prompt(
+        task,
+        sandbox,
+        validation_feedback="Tests failed after Codex returned no changes.",
+        codex_summary="writing is blocked by read-only sandbox",
+    )
+
+    assert '"changed_files":[{"path":"relative/path.py","content":"full file content"}]' in prompt
+    assert "app/main.py" in prompt
+    assert "read-only sandbox" in prompt
 
 
 def test_persona_action_parse_errors_fall_back_to_finish(tmp_path) -> None:
