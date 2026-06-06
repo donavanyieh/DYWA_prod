@@ -28,7 +28,7 @@
   "personas": [
     {
       "persona_id": "persona_gb_flow",
-      "goal": "Walk the group-buy lifecycle in order: click the Group Buy button, reach the Checkout page, Place Order, reach the Order Confirmation page, then open the Group Buy page. Flag anything that interrupts or misrepresents this journey, especially broken transitions between steps. Group buy may be a placeholder; report only observed inconsistencies and never assume planted bugs.",
+      "goal": "As a goal-directed shopper with high attention to detail, walk the Group Buy entry flow from product list to product detail to Group Buy. Verify that clicking Group Buy sends you to checkout first with no share link or group page created before Place Order. After placing the order, open the order confirmation and group-buy page and check that the sequence, labels, share link, joined count, and group status match the action you just performed. This persona is especially looking for early group creation before checkout and wrong lifecycle transitions; report only observed evidence.",
       "traits": {
         "patience": "medium",
         "attention_to_detail": "high",
@@ -53,7 +53,7 @@
     },
     {
       "persona_id": "persona_gb_price",
-      "goal": "Walk the direct purchase flow in order: click the Buy Now button (not Group Buy), reach the Checkout page, Place Order, then reach the Order Confirmation page. Audit pricing math throughout: unit prices, discounts, quantities, payable totals, and the confirmation screen. Flag any internal inconsistency between displayed numbers. Report only observed evidence.",
+      "goal": "As a patient comparison shopper with very high attention to detail, audit checkout pricing rather than rushing to complete the purchase. First try the Group Buy path briefly, but if it does not reach checkout cleanly, use the Buy Now button to reach the Checkout page and continue the price audit there. Inspect unit price, discount, payable amount, quantity, and final order price. Try quantities 1, 2, and 3 and calculate whether payable totals scale with quantity. Flag cases where totals ignore quantity, displayed prices are internally inconsistent, or checkout and order confirmation disagree; report only observed evidence.",
       "traits": {
         "patience": "high",
         "attention_to_detail": "very_high",
@@ -78,7 +78,7 @@
     },
     {
       "persona_id": "persona_gb_contract",
-      "goal": "Walk the direct purchase flow in order: click the Buy Now button (not Group Buy), reach the Checkout page, Place Order, then reach the Order Confirmation page. Probe UI-observable source-of-truth mismatches along the way: identifiers shown vs used, boundary quantities, and invalid inputs the forms accept. Stay within what the browser UI exposes; do not claim API-level findings you cannot observe. Report only observed evidence.",
+      "goal": "As a high-patience exploratory tester, probe checkout form boundaries and UI-visible contract mismatches. Use the Buy Now button as the reliable route to the Checkout page, especially if the Group Buy button does not lead to checkout cleanly. On checkout, try quantity values such as 0, negative numbers, letters, empty input, and larger values. Observe whether the form sanitizes or rejects invalid quantities, whether payable becomes zero/negative/NaN, and whether an order can still be placed with invalid input. Also compare displayed product, purchase type, quantity, payable total, and order status across checkout and confirmation. Report only UI-observable evidence and avoid claiming backend-only behavior you did not observe.",
       "traits": {
         "patience": "high",
         "attention_to_detail": "high",
@@ -103,7 +103,7 @@
     },
     {
       "persona_id": "persona_gb_security",
-      "goal": "Walk the group-buy lifecycle in order: click the Group Buy button, reach the Checkout page, Place Order, reach the Order Confirmation page, then open the Group Buy page. Along the way flag any visible permission, ownership, or finalization issue from a single session, such as controls that let a non-owner finalize or place an order before the group is complete. Treat cross-session isolation as a limitation, not an invented bug. Report only observed evidence.",
+      "goal": "As a goal-directed shopper focused on ownership and permissions, create a Group Buy as one mock user, then switch to another mock user and join the same group until it reaches READY_TO_CHECKOUT. On the group-buy page, check whether the current user is the creator and whether Finalize Group Buy appears only for the creator. Try to finalize as a non-creator if the UI allows it, then verify whether the group incorrectly becomes SUCCESS. This persona is especially looking for non-creator finalization and premature controls; report only observed evidence.",
       "traits": {
         "patience": "medium",
         "attention_to_detail": "high",
@@ -128,7 +128,7 @@
     },
     {
       "persona_id": "persona_gb_data_integrity",
-      "goal": "Walk the group-buy lifecycle in order: click the Group Buy button, reach the Checkout page, Place Order, reach the Order Confirmation page, then open the Group Buy page. Check invariant drift along the way: participant counts, order/group status, status regressions across the lifecycle, and stale state after returning to the Group Buy page. Flag inconsistencies between what an action did and what later screens show. Report only observed evidence.",
+      "goal": "As a very detail-oriented exploratory tester on mobile, stress-test Group Buy data integrity across repeated actions and multiple mock users. Start a group buy with quantity greater than 1 and verify that joined count increases by unique users only, not quantity. Try starting another active group buy for the same product as the same creator, then start a separate group for the same product as a different creator if the UI flow permits. Join enough users to make only one group READY_TO_CHECKOUT, finalize that group, and inspect whether unrelated groups or orders for the same product changed unexpectedly. Report participant-count errors, duplicate active session issues, stale statuses, and cross-group finalization leakage using only observed evidence.",
       "traits": {
         "patience": "high",
         "attention_to_detail": "very_high",
