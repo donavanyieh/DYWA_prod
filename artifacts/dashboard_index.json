@@ -1,7 +1,378 @@
 {
-  "artifacts_dir": "/Users/donavanyieh/Desktop/hackathon_prod/dywa_prod/DYWA_prod/artifacts",
-  "generated_at": "2026-06-06T07:23:03Z",
+  "artifacts_dir": "C:/Users/ameli/Documents/all ur code projects/DYWA_prod/artifacts",
+  "generated_at": "2026-06-06T07:34:20Z",
   "runs": [
+    {
+      "bundle_path": null,
+      "completed_at": null,
+      "components": {
+        "dashboard": "running",
+        "fixing_agent": "running",
+        "persona_agents": "idle",
+        "shopping_app": "running",
+        "verifier": "idle"
+      },
+      "counts": {
+        "bug_reports": 3,
+        "decision_artifacts": 18,
+        "fix_results": 0,
+        "screenshots": 18,
+        "transcript_events": 18,
+        "verifier_decisions": 3
+      },
+      "has_bundle": false,
+      "models": [
+        "gpt-4o-mini"
+      ],
+      "personas": [
+        "persona_gb_contract",
+        "persona_gb_data_integrity",
+        "persona_gb_flow",
+        "persona_gb_price",
+        "persona_gb_security"
+      ],
+      "run_dir": "run_b625324a",
+      "run_id": "run_b625324a",
+      "stage": "fixing",
+      "started_at": "2026-06-06T07:33:01Z",
+      "status": "running",
+      "summary": {
+        "confirmed_total": 1,
+        "duplicate_total": 1,
+        "fixed_total": 0,
+        "invalid_total": 1,
+        "reports_total": 3
+      },
+      "updated_at": "2026-06-06T07:34:20Z"
+    },
+    {
+      "bundle_path": "run_9340dcca/dashboard_bundle.json",
+      "completed_at": "2026-06-06T07:09:15Z",
+      "components": {
+        "dashboard": "running",
+        "fixing_agent": "idle",
+        "persona_agents": "idle",
+        "shopping_app": "running",
+        "verifier": "idle"
+      },
+      "counts": {
+        "bug_reports": 5,
+        "decision_artifacts": 20,
+        "fix_results": 2,
+        "screenshots": 20,
+        "transcript_events": 32,
+        "verifier_decisions": 5
+      },
+      "has_bundle": true,
+      "models": [
+        "gpt-4o-mini"
+      ],
+      "personas": [
+        "persona_gb_contract",
+        "persona_gb_data_integrity",
+        "persona_gb_flow",
+        "persona_gb_price",
+        "persona_gb_security"
+      ],
+      "run_dir": "run_9340dcca",
+      "run_id": "run_9340dcca",
+      "stage": "complete",
+      "started_at": "2026-06-06T07:05:34Z",
+      "status": "completed",
+      "summary": {
+        "confirmed_total": 2,
+        "duplicate_total": 2,
+        "fixed_total": 0,
+        "invalid_total": 0,
+        "reports_total": 5
+      },
+      "updated_at": "2026-06-06T07:09:15Z"
+    },
+    {
+      "bundle_path": null,
+      "completed_at": null,
+      "components": {
+        "dashboard": "running",
+        "fixing_agent": "idle",
+        "persona_agents": "running",
+        "shopping_app": "running",
+        "verifier": "idle"
+      },
+      "counts": {
+        "bug_reports": 1,
+        "decision_artifacts": 11,
+        "fix_results": 0,
+        "screenshots": 11,
+        "transcript_events": 11,
+        "verifier_decisions": 0
+      },
+      "has_bundle": false,
+      "models": [
+        "gpt-4o-mini"
+      ],
+      "personas": [
+        "persona_gb_flow",
+        "persona_gb_price"
+      ],
+      "run_dir": "run_dd851cd9",
+      "run_id": "run_dd851cd9",
+      "stage": "persona_exploration",
+      "started_at": "2026-06-06T06:59:22Z",
+      "status": "running",
+      "summary": {
+        "confirmed_total": 0,
+        "duplicate_total": 0,
+        "fixed_total": 0,
+        "invalid_total": 0,
+        "reports_total": 0
+      },
+      "updated_at": "2026-06-06T06:59:24Z"
+    },
+    {
+      "bundle_path": null,
+      "completed_at": null,
+      "components": {
+        "dashboard": "running",
+        "fixing_agent": "idle",
+        "persona_agents": "running",
+        "shopping_app": "running",
+        "verifier": "idle"
+      },
+      "counts": {
+        "bug_reports": 0,
+        "decision_artifacts": 3,
+        "fix_results": 0,
+        "screenshots": 3,
+        "transcript_events": 2,
+        "verifier_decisions": 0
+      },
+      "has_bundle": false,
+      "models": [
+        "gpt-4o-mini"
+      ],
+      "personas": [
+        "persona_gb_flow",
+        "persona_gb_price"
+      ],
+      "run_dir": "run_ccb76b1f",
+      "run_id": "run_ccb76b1f",
+      "stage": "persona_exploration",
+      "started_at": "2026-06-06T06:58:08Z",
+      "status": "running",
+      "summary": {
+        "confirmed_total": 0,
+        "duplicate_total": 0,
+        "fixed_total": 0,
+        "invalid_total": 0,
+        "reports_total": 0
+      },
+      "updated_at": "2026-06-06T06:58:10Z"
+    },
+    {
+      "bundle_path": null,
+      "completed_at": null,
+      "components": {
+        "dashboard": "running",
+        "fixing_agent": "idle",
+        "persona_agents": "running",
+        "shopping_app": "running",
+        "verifier": "idle"
+      },
+      "counts": {
+        "bug_reports": 1,
+        "decision_artifacts": 4,
+        "fix_results": 0,
+        "screenshots": 5,
+        "transcript_events": 4,
+        "verifier_decisions": 0
+      },
+      "has_bundle": false,
+      "models": [
+        "gpt-4o-mini"
+      ],
+      "personas": [
+        "persona_gb_flow",
+        "persona_gb_price"
+      ],
+      "run_dir": "run_02e3aa1f",
+      "run_id": "run_02e3aa1f",
+      "stage": "persona_exploration",
+      "started_at": "2026-06-06T06:55:11Z",
+      "status": "running",
+      "summary": {
+        "confirmed_total": 0,
+        "duplicate_total": 0,
+        "fixed_total": 0,
+        "invalid_total": 0,
+        "reports_total": 0
+      },
+      "updated_at": "2026-06-06T06:55:13Z"
+    },
+    {
+      "bundle_path": "run_ec070629/dashboard_bundle.json",
+      "completed_at": "2026-06-06T06:45:38Z",
+      "components": {
+        "dashboard": "running",
+        "fixing_agent": "idle",
+        "persona_agents": "idle",
+        "shopping_app": "running",
+        "verifier": "idle"
+      },
+      "counts": {
+        "bug_reports": 4,
+        "decision_artifacts": 18,
+        "fix_results": 1,
+        "screenshots": 18,
+        "transcript_events": 24,
+        "verifier_decisions": 4
+      },
+      "has_bundle": true,
+      "models": [
+        "gpt-4o-mini"
+      ],
+      "personas": [
+        "persona_gb_contract",
+        "persona_gb_data_integrity",
+        "persona_gb_flow",
+        "persona_gb_price",
+        "persona_gb_security"
+      ],
+      "run_dir": "run_ec070629",
+      "run_id": "run_ec070629",
+      "stage": "complete",
+      "started_at": "2026-06-06T06:42:18Z",
+      "status": "completed",
+      "summary": {
+        "confirmed_total": 1,
+        "duplicate_total": 0,
+        "fixed_total": 0,
+        "invalid_total": 2,
+        "reports_total": 4
+      },
+      "updated_at": "2026-06-06T06:45:38Z"
+    },
+    {
+      "bundle_path": null,
+      "completed_at": null,
+      "components": {
+        "dashboard": "running",
+        "fixing_agent": "idle",
+        "persona_agents": "running",
+        "shopping_app": "running",
+        "verifier": "idle"
+      },
+      "counts": {
+        "bug_reports": 0,
+        "decision_artifacts": 0,
+        "fix_results": 0,
+        "screenshots": 1,
+        "transcript_events": 0,
+        "verifier_decisions": 0
+      },
+      "has_bundle": false,
+      "models": [
+        "gpt-4o-mini"
+      ],
+      "personas": [
+        "persona_gb_flow"
+      ],
+      "run_dir": "run_6172361e",
+      "run_id": "run_6172361e",
+      "stage": "persona_exploration",
+      "started_at": "2026-06-06T06:36:13Z",
+      "status": "running",
+      "summary": {
+        "confirmed_total": 0,
+        "duplicate_total": 0,
+        "fixed_total": 0,
+        "invalid_total": 0,
+        "reports_total": 0
+      },
+      "updated_at": "2026-06-06T06:36:16Z"
+    },
+    {
+      "bundle_path": "run_a380e8a8/dashboard_bundle.json",
+      "completed_at": "2026-06-06T06:05:19Z",
+      "components": {
+        "dashboard": "running",
+        "fixing_agent": "idle",
+        "persona_agents": "idle",
+        "shopping_app": "running",
+        "verifier": "idle"
+      },
+      "counts": {
+        "bug_reports": 5,
+        "decision_artifacts": 33,
+        "fix_results": 1,
+        "screenshots": 33,
+        "transcript_events": 33,
+        "verifier_decisions": 5
+      },
+      "has_bundle": true,
+      "models": [
+        "gpt-4o-mini"
+      ],
+      "personas": [
+        "persona_gb_contract",
+        "persona_gb_data_integrity",
+        "persona_gb_flow",
+        "persona_gb_price",
+        "persona_gb_security"
+      ],
+      "run_dir": "run_a380e8a8",
+      "run_id": "run_a380e8a8",
+      "stage": "complete",
+      "started_at": "2026-06-06T05:54:34Z",
+      "status": "completed",
+      "summary": {
+        "confirmed_total": 1,
+        "duplicate_total": 0,
+        "fixed_total": 0,
+        "invalid_total": 1,
+        "reports_total": 5
+      },
+      "updated_at": "2026-06-06T06:05:19Z"
+    },
+    {
+      "bundle_path": null,
+      "completed_at": null,
+      "components": {
+        "dashboard": "running",
+        "fixing_agent": "idle",
+        "persona_agents": "running",
+        "shopping_app": "running",
+        "verifier": "idle"
+      },
+      "counts": {
+        "bug_reports": 1,
+        "decision_artifacts": 6,
+        "fix_results": 0,
+        "screenshots": 6,
+        "transcript_events": 5,
+        "verifier_decisions": 0
+      },
+      "has_bundle": false,
+      "models": [
+        "gpt-4o-mini"
+      ],
+      "personas": [
+        "persona_gb_flow",
+        "persona_gb_price"
+      ],
+      "run_dir": "run_a2fa2176",
+      "run_id": "run_a2fa2176",
+      "stage": "persona_exploration",
+      "started_at": "2026-06-06T05:49:40Z",
+      "status": "running",
+      "summary": {
+        "confirmed_total": 0,
+        "duplicate_total": 0,
+        "fixed_total": 0,
+        "invalid_total": 0,
+        "reports_total": 0
+      },
+      "updated_at": "2026-06-06T05:49:41Z"
+    },
     {
       "bundle_path": null,
       "completed_at": null,
@@ -21,12 +392,16 @@
         "verifier_decisions": 0
       },
       "has_bundle": false,
-      "models": [],
-      "personas": [],
-      "run_dir": "run_c68cea7a",
-      "run_id": "run_c68cea7a",
+      "models": [
+        "gpt-4o-mini"
+      ],
+      "personas": [
+        "persona_gb_flow"
+      ],
+      "run_dir": "run_6f3204f5",
+      "run_id": "run_6f3204f5",
       "stage": "persona_exploration",
-      "started_at": "2026-06-06T07:23:03Z",
+      "started_at": "2026-06-06T05:49:35Z",
       "status": "running",
       "summary": {
         "confirmed_total": 0,
@@ -35,49 +410,46 @@
         "invalid_total": 0,
         "reports_total": 0
       },
-      "updated_at": "2026-06-06T07:23:03Z"
+      "updated_at": "2026-06-06T05:49:37Z"
     },
     {
-      "bundle_path": "run_7e70d668/dashboard_bundle.json",
-      "completed_at": "2026-06-06T06:25:47Z",
+      "bundle_path": null,
+      "completed_at": null,
       "components": {
         "dashboard": "running",
         "fixing_agent": "idle",
-        "persona_agents": "idle",
+        "persona_agents": "running",
         "shopping_app": "running",
         "verifier": "idle"
       },
       "counts": {
-        "bug_reports": 4,
-        "decision_artifacts": 23,
-        "fix_results": 2,
-        "screenshots": 23,
-        "transcript_events": 23,
-        "verifier_decisions": 4
+        "bug_reports": 0,
+        "decision_artifacts": 0,
+        "fix_results": 0,
+        "screenshots": 0,
+        "transcript_events": 0,
+        "verifier_decisions": 0
       },
-      "has_bundle": true,
+      "has_bundle": false,
       "models": [
-        "gpt-5"
+        "gpt-4o-mini"
       ],
       "personas": [
-        "persona_edge_case_explorer",
-        "persona_general_shopper",
-        "persona_impatient_buyer",
-        "persona_price_auditor"
+        "persona_gb_flow"
       ],
-      "run_dir": "run_7e70d668",
-      "run_id": "run_7e70d668",
-      "stage": "complete",
-      "started_at": "2026-06-06T06:20:22Z",
-      "status": "completed",
+      "run_dir": "run_45d3f681",
+      "run_id": "run_45d3f681",
+      "stage": "persona_exploration",
+      "started_at": "2026-06-06T05:47:20Z",
+      "status": "running",
       "summary": {
-        "confirmed_total": 2,
-        "duplicate_total": 2,
-        "fixed_total": 2,
+        "confirmed_total": 0,
+        "duplicate_total": 0,
+        "fixed_total": 0,
         "invalid_total": 0,
-        "reports_total": 4
+        "reports_total": 0
       },
-      "updated_at": "2026-06-06T06:25:47Z"
+      "updated_at": "2026-06-06T05:47:21Z"
     },
     {
       "bundle_path": "run_9660eee3/dashboard_bundle.json",
@@ -119,7 +491,125 @@
         "invalid_total": 0,
         "reports_total": 4
       },
-      "updated_at": "2026-06-06T05:44:19Z"
+      "updated_at": "2026-06-06T06:28:26Z"
+    },
+    {
+      "bundle_path": null,
+      "completed_at": null,
+      "components": {
+        "dashboard": "running",
+        "fixing_agent": "idle",
+        "persona_agents": "running",
+        "shopping_app": "running",
+        "verifier": "idle"
+      },
+      "counts": {
+        "bug_reports": 0,
+        "decision_artifacts": 0,
+        "fix_results": 0,
+        "screenshots": 1,
+        "transcript_events": 0,
+        "verifier_decisions": 0
+      },
+      "has_bundle": false,
+      "models": [
+        "gpt-4o-mini"
+      ],
+      "personas": [
+        "persona_gb_flow"
+      ],
+      "run_dir": "run_9ef6b5bb",
+      "run_id": "run_9ef6b5bb",
+      "stage": "persona_exploration",
+      "started_at": "2026-06-06T05:28:35Z",
+      "status": "running",
+      "summary": {
+        "confirmed_total": 0,
+        "duplicate_total": 0,
+        "fixed_total": 0,
+        "invalid_total": 0,
+        "reports_total": 0
+      },
+      "updated_at": "2026-06-06T05:28:38Z"
+    },
+    {
+      "bundle_path": null,
+      "completed_at": null,
+      "components": {
+        "dashboard": "running",
+        "fixing_agent": "idle",
+        "persona_agents": "running",
+        "shopping_app": "running",
+        "verifier": "idle"
+      },
+      "counts": {
+        "bug_reports": 0,
+        "decision_artifacts": 49,
+        "fix_results": 0,
+        "screenshots": 49,
+        "transcript_events": 48,
+        "verifier_decisions": 0
+      },
+      "has_bundle": false,
+      "models": [
+        "gpt-5"
+      ],
+      "personas": [
+        "persona_gb_flow",
+        "persona_gb_price"
+      ],
+      "run_dir": "run_285a85b8",
+      "run_id": "run_285a85b8",
+      "stage": "persona_exploration",
+      "started_at": "2026-06-06T04:38:50Z",
+      "status": "running",
+      "summary": {
+        "confirmed_total": 0,
+        "duplicate_total": 0,
+        "fixed_total": 0,
+        "invalid_total": 0,
+        "reports_total": 0
+      },
+      "updated_at": "2026-06-06T04:38:53Z"
+    },
+    {
+      "bundle_path": null,
+      "completed_at": null,
+      "components": {
+        "dashboard": "running",
+        "fixing_agent": "idle",
+        "persona_agents": "running",
+        "shopping_app": "running",
+        "verifier": "idle"
+      },
+      "counts": {
+        "bug_reports": 0,
+        "decision_artifacts": 21,
+        "fix_results": 0,
+        "screenshots": 22,
+        "transcript_events": 21,
+        "verifier_decisions": 0
+      },
+      "has_bundle": false,
+      "models": [
+        "gpt-5"
+      ],
+      "personas": [
+        "persona_gb_flow"
+      ],
+      "run_dir": "run_3d878525",
+      "run_id": "run_3d878525",
+      "stage": "persona_exploration",
+      "started_at": "2026-06-06T04:30:50Z",
+      "status": "running",
+      "summary": {
+        "confirmed_total": 0,
+        "duplicate_total": 0,
+        "fixed_total": 0,
+        "invalid_total": 0,
+        "reports_total": 0
+      },
+      "updated_at": "2026-06-06T04:30:53Z"
     },
     {
       "bundle_path": "run_29e27059/dashboard_bundle.json",
@@ -161,17 +651,17 @@
         "invalid_total": 0,
         "reports_total": 4
       },
-      "updated_at": "2026-06-06T02:58:54Z"
+      "updated_at": "2026-06-06T03:10:53Z"
     }
   ],
   "schema_version": "1.0.0",
   "totals": {
-    "completed": 3,
-    "confirmed": 5,
+    "completed": 5,
+    "confirmed": 8,
     "failed": 0,
-    "fixed": 5,
-    "reports": 12,
-    "running": 1,
-    "runs": 4
+    "fixed": 3,
+    "reports": 25,
+    "running": 11,
+    "runs": 16
   }
 }
