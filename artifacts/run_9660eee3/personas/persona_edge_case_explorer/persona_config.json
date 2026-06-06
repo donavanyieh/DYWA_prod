@@ -1,0 +1,29 @@
+{
+  "app_base_url": "http://127.0.0.1:8765",
+  "artifact_dir": "/Users/donavanyieh/Desktop/hackathon_prod/dywa_prod/DYWA_prod/artifacts/run_9660eee3/personas/persona_edge_case_explorer",
+  "constraints": {
+    "headless": false,
+    "max_actions": 40,
+    "max_duration_ms": 150000,
+    "slow_mo_ms": 250,
+    "viewport": {
+      "height": 844,
+      "width": 390
+    }
+  },
+  "goal": "Try realistic edge-case shopping behavior such as changing quantities, removing items, revisiting pages, and checking whether the site remains consistent.",
+  "model": {
+    "mode": "live",
+    "model_name": "gpt-5",
+    "provider": "openai",
+    "reasoning_effort": "medium"
+  },
+  "persona_id": "persona_edge_case_explorer",
+  "run_id": "run_9660eee3",
+  "schema_version": "1.0.0",
+  "traits": {
+    "attention_to_detail": "high",
+    "patience": "high",
+    "shopping_style": "exploratory"
+  }
+}

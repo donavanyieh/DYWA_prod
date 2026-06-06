@@ -1,0 +1,44 @@
+{
+  "schema_version": "1.0.0",
+  "report_id": "bugrep_demo_001",
+  "run_id": "run_demo_001",
+  "persona_id": "persona_budget_buyer",
+  "created_at": "2026-06-06T12:02:00Z",
+  "title": "Cart total did not update after quantity changed",
+  "severity_guess": "medium",
+  "confidence": 0.78,
+  "observed_behavior": "The cart quantity changed from 1 to 2, but the displayed total stayed at $12.50.",
+  "expected_behavior": "The cart total should update to $25.00 when quantity changes to 2.",
+  "reproduction_steps": [
+    "Open the shop.",
+    "Add Blue Shockproof Phone Case to cart.",
+    "Increase quantity from 1 to 2.",
+    "Observe cart subtotal and total."
+  ],
+  "evidence": {
+    "transcript_event_ids": [
+      "evt_demo_001"
+    ],
+    "artifacts": [
+      {
+        "schema_version": "1.0.0",
+        "artifact_id": "art_demo_screen_001",
+        "type": "screenshot",
+        "uri": "artifacts/run_demo_001/persona_budget_buyer/cart_total.png",
+        "mime_type": "image/png",
+        "created_at": "2026-06-06T12:01:58Z",
+        "sha256": null,
+        "metadata": {
+          "viewport": "1440x900"
+        }
+      }
+    ]
+  },
+  "environment": {
+    "app_base_url": "http://127.0.0.1:8000",
+    "browser": "chromium",
+    "viewport": "1440x900"
+  },
+  "metadata": {}
+}
+
