@@ -1,7 +1,49 @@
 {
   "artifacts_dir": "/Users/donavanyieh/Desktop/hackathon_prod/dywa_prod/DYWA_prod/artifacts",
-  "generated_at": "2026-06-06T05:44:19Z",
+  "generated_at": "2026-06-06T06:25:47Z",
   "runs": [
+    {
+      "bundle_path": "run_7e70d668/dashboard_bundle.json",
+      "completed_at": "2026-06-06T06:25:47Z",
+      "components": {
+        "dashboard": "running",
+        "fixing_agent": "idle",
+        "persona_agents": "idle",
+        "shopping_app": "running",
+        "verifier": "idle"
+      },
+      "counts": {
+        "bug_reports": 4,
+        "decision_artifacts": 23,
+        "fix_results": 2,
+        "screenshots": 23,
+        "transcript_events": 23,
+        "verifier_decisions": 4
+      },
+      "has_bundle": true,
+      "models": [
+        "gpt-5"
+      ],
+      "personas": [
+        "persona_edge_case_explorer",
+        "persona_general_shopper",
+        "persona_impatient_buyer",
+        "persona_price_auditor"
+      ],
+      "run_dir": "run_7e70d668",
+      "run_id": "run_7e70d668",
+      "stage": "complete",
+      "started_at": "2026-06-06T06:20:22Z",
+      "status": "completed",
+      "summary": {
+        "confirmed_total": 2,
+        "duplicate_total": 2,
+        "fixed_total": 2,
+        "invalid_total": 0,
+        "reports_total": 4
+      },
+      "updated_at": "2026-06-06T06:25:47Z"
+    },
     {
       "bundle_path": "run_9660eee3/dashboard_bundle.json",
       "completed_at": "2026-06-06T05:44:19Z",
@@ -43,45 +85,6 @@
         "reports_total": 4
       },
       "updated_at": "2026-06-06T05:44:19Z"
-    },
-    {
-      "bundle_path": null,
-      "completed_at": null,
-      "components": {
-        "dashboard": "running",
-        "fixing_agent": "idle",
-        "persona_agents": "running",
-        "shopping_app": "running",
-        "verifier": "idle"
-      },
-      "counts": {
-        "bug_reports": 0,
-        "decision_artifacts": 0,
-        "fix_results": 0,
-        "screenshots": 0,
-        "transcript_events": 0,
-        "verifier_decisions": 0
-      },
-      "has_bundle": false,
-      "models": [
-        "gpt-5"
-      ],
-      "personas": [
-        "persona_general_shopper"
-      ],
-      "run_dir": "run_367aab4a",
-      "run_id": "run_367aab4a",
-      "stage": "persona_exploration",
-      "started_at": "2026-06-06T05:36:29Z",
-      "status": "running",
-      "summary": {
-        "confirmed_total": 0,
-        "duplicate_total": 0,
-        "fixed_total": 0,
-        "invalid_total": 0,
-        "reports_total": 0
-      },
-      "updated_at": "2026-06-06T05:36:29Z"
     },
     {
       "bundle_path": "run_29e27059/dashboard_bundle.json",
@@ -128,12 +131,12 @@
   ],
   "schema_version": "1.0.0",
   "totals": {
-    "completed": 2,
-    "confirmed": 3,
+    "completed": 3,
+    "confirmed": 5,
     "failed": 0,
-    "fixed": 3,
-    "reports": 8,
-    "running": 1,
+    "fixed": 5,
+    "reports": 12,
+    "running": 0,
     "runs": 3
   }
 }

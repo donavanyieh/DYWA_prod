@@ -67,8 +67,7 @@ def calculate_cart_total(cart: dict[str, int]) -> float:
     total = 0.0
     for product_id, quantity in cart.items():
         product = product_by_id(product_id)
-        unit_price = float(product["price"])
-        total += unit_price * int(quantity)
+        total += float(product["price"]) * quantity
     return round(total, 2)
 
 
@@ -93,10 +92,10 @@ def cart_payload(cart: dict[str, int]) -> dict[str, object]:
 def index() -> str:
     return """
 <!doctype html>
-<html lang=\"en\">
+<html lang="en">
   <head>
-    <meta charset=\"utf-8\">
-    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Demo Shop</title>
     <style>
       :root { font-family: Arial, Helvetica, sans-serif; color: #18202a; }
@@ -113,7 +112,6 @@ def index() -> str:
         cursor: pointer; font-weight: 700; padding: 10px 12px;
       }
       button.secondary { background: #335c67; }
-      button:disabled { background: #94a3b8; cursor: not-allowed; opacity: 0.8; }
       input { border: 1px solid #b8c0cc; border-radius: 6px; padding: 8px; width: 64px; }
       .muted { color: #667085; }
       .total { font-size: 1.35rem; font-weight: 800; }
@@ -123,25 +121,25 @@ def index() -> str:
   <body>
     <header><strong>Demo Shop</strong></header>
     <main>
-      <div class=\"layout\">
+      <div class="layout">
         <section>
           <h1>Products</h1>
-          <div id=\"products\" class=\"products\"></div>
+          <div id="products" class="products"></div>
         </section>
         <aside>
           <h2>Cart</h2>
-          <div id=\"cart\" class=\"cart-panel\"></div>
-          <p><button id=\"checkout\" class=\"secondary\" type=\"button\">Checkout</button></p>
-          <div id=\"order\" class=\"order-panel muted\">No order yet.</div>
+          <div id="cart" class="cart-panel"></div>
+          <p><button id="checkout" class="secondary" type="button" disabled>Checkout</button></p>
+          <div id="order" class="order-panel muted">No order yet.</div>
         </aside>
       </div>
     </main>
     <script>
-      const money = new Intl.NumberFormat(\"en-US\", { style: \"currency\", currency: \"USD\" });
+      const money = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
 
       async function api(path, options = {}) {
         const response = await fetch(path, {
-          headers: { \"Content-Type\": \"application/json\" },
+          headers: { "Content-Type": "application/json" },
           ...options
         });
         if (!response.ok) throw new Error(await response.text());
@@ -149,53 +147,45 @@ def index() -> str:
       }
 
       async function loadProducts() {
-        const products = await api(\"/api/products\");
-        document.querySelector(\"#products\").innerHTML = products.map(product => `
-          <article class=\"product\">
+        const products = await api("/api/products");
+        document.querySelector("#products").innerHTML = products.map(product => `
+          <article class="product">
             <h2>${product.name}</h2>
-            <p class=\"muted\">${product.category}</p>
+            <p class="muted">${product.category}</p>
             <p><strong>${money.format(product.price)}</strong></p>
-            <button type=\"button\" onclick=\"addToCart('${product.id}')\">Add to cart</button>
+            <button type="button" onclick="addToCart('${product.id}')">Add to cart</button>
           </article>
-        `).join(\"\");
+        `).join("");
       }
 
       async function loadCart() {
-        const cart = await api(\"/api/cart\");
-        const checkoutBtn = document.querySelector(\"#checkout\");
+        const cart = await api("/api/cart");
+        const checkoutBtn = document.querySelector("#checkout");
         if (!cart.items.length) {
-          document.querySelector(\"#cart\").innerHTML = \"<p class='muted'>Your cart is empty.</p>\";
-          if (checkoutBtn) {
-            checkoutBtn.disabled = true;
-            checkoutBtn.setAttribute('aria-disabled', 'true');
-            checkoutBtn.title = 'Your cart is empty';
-          }
+          document.querySelector("#cart").innerHTML = "<p class='muted'>Your cart is empty.</p>";
+          checkoutBtn.disabled = true;
           return;
         }
-        if (checkoutBtn) {
-          checkoutBtn.disabled = false;
-          checkoutBtn.removeAttribute('aria-disabled');
-          checkoutBtn.removeAttribute('title');
-        }
-        document.querySelector(\"#cart\").innerHTML = `
+        checkoutBtn.disabled = false;
+        document.querySelector("#cart").innerHTML = `
           ${cart.items.map(item => `
             <div>
               <strong>${item.name}</strong>
-              <p class=\"muted\">Unit ${money.format(item.unit_price)} | Subtotal ${money.format(item.subtotal)}</p>
+              <p class="muted">Unit ${money.format(item.unit_price)} | Subtotal ${money.format(item.subtotal)}</p>
               <label>
                 Quantity
-                <input type=\"number\" min=\"0\" max=\"99\" value=\"${item.quantity}\"
-                  onchange=\"updateQuantity('${item.product_id}', this.value)\">
+                <input type="number" min="0" max="99" value="${item.quantity}"
+                  onchange="updateQuantity('${item.product_id}', this.value)">
               </label>
             </div>
-          `).join(\"<hr>\")}
-          <p class=\"total\">Total: ${money.format(cart.total)}</p>
+          `).join("<hr>")}
+          <p class="total">Total: ${money.format(cart.total)}</p>
         `;
       }
 
       async function addToCart(productId) {
-        await api(\"/api/cart/items\", {
-          method: \"POST\",
+        await api("/api/cart/items", {
+          method: "POST",
           body: JSON.stringify({ product_id: productId, quantity: 1 })
         });
         await loadCart();
@@ -203,38 +193,26 @@ def index() -> str:
 
       async function updateQuantity(productId, quantity) {
         await api(`/api/cart/items/${productId}`, {
-          method: \"PATCH\",
+          method: "PATCH",
           body: JSON.stringify({ quantity: Number(quantity) })
         });
         await loadCart();
       }
 
       async function checkout() {
-        const btn = document.querySelector(\"#checkout\");
-        if (btn && btn.disabled) {
-          document.querySelector(\"#order\").innerHTML = "<p class='muted'>Cart is empty. Add items before checking out.</p>";
+        // Guard on client: prevent checkout if the cart is empty
+        const currentCart = await api("/api/cart");
+        if (!currentCart.items.length) {
+          document.querySelector("#order").innerHTML = "<em>Please add items to your cart before checkout.</em>";
           return;
         }
-        try {
-          const order = await api(\"/api/checkout\", { method: \"POST\" });
-          document.querySelector(\"#order\").innerHTML =
-            `<strong>Order ${order.order_id}</strong><p>Total charged: ${money.format(order.total)}</p>`;
-          await loadCart();
-        } catch (err) {
-          let msg = 'Checkout failed';
-          if (err && err.message) {
-            try {
-              const data = JSON.parse(err.message);
-              if (data && data.detail) msg = data.detail;
-            } catch (_) {
-              msg = err.message;
-            }
-          }
-          document.querySelector(\"#order\").innerHTML = `<p class='muted'>${msg}</p>`;
-        }
+        const order = await api("/api/checkout", { method: "POST" });
+        document.querySelector("#order").innerHTML =
+          `<strong>Order ${order.order_id}</strong><p>Total charged: ${money.format(order.total)}</p>`;
+        await loadCart();
       }
 
-      document.querySelector(\"#checkout\").addEventListener(\"click\", checkout);
+      document.querySelector("#checkout").addEventListener("click", checkout);
       loadProducts();
       loadCart();
     </script>
@@ -294,13 +272,12 @@ def checkout(
 ) -> dict[str, object]:
     current_session = get_or_create_session_id(response, session_id)
     cart = session_cart(current_session)
-    payload = cart_payload(cart)
-    if not payload["items"]:
+    if not cart:
         raise HTTPException(status_code=400, detail="Cart is empty")
     order = {
         "order_id": f"ord_{uuid4().hex[:8]}",
-        "items": payload["items"],
-        "total": payload["total"],
+        "items": cart_payload(cart)["items"],
+        "total": calculate_cart_total(cart),
     }
     ORDERS.append(order)
     CARTS[current_session] = {}
@@ -312,4 +289,3 @@ def reset_state() -> dict[str, object]:
     CARTS.clear()
     ORDERS.clear()
     return {"status": "completed", "restored": ["in_memory_cart", "orders"]}
-

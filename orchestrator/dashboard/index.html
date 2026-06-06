@@ -61,7 +61,7 @@
         align-items: center;
         display: flex;
         gap: 18px;
-        justify-content: flex-start;
+        justify-content: space-between;
         margin: 0 auto;
         max-width: 1280px;
         min-height: 68px;
@@ -99,6 +99,35 @@
         font-size: 13px;
         line-height: 1.35;
         margin: 2px 0 0;
+      }
+
+      .top-nav {
+        align-items: center;
+        background: #eef2f6;
+        border-radius: 8px;
+        display: flex;
+        gap: 4px;
+        padding: 4px;
+      }
+
+      .nav-button {
+        background: transparent;
+        border: 0;
+        border-radius: 6px;
+        color: #526170;
+        font-size: 13px;
+        font-weight: 600;
+        min-height: 34px;
+        padding: 0 13px;
+        transition: background-color 140ms ease, color 140ms ease, box-shadow 140ms ease;
+        white-space: nowrap;
+      }
+
+      .nav-button:hover,
+      .nav-button.is-active {
+        background: #fff;
+        box-shadow: 0 1px 3px rgba(25, 38, 60, 0.08);
+        color: var(--ink);
       }
 
       .button {
@@ -334,6 +363,29 @@
         transform: translateY(-1px);
       }
 
+      .primary-action {
+        background: #7c6ee6;
+        border: 0;
+        border-radius: 6px;
+        color: #fff;
+        font-size: 13px;
+        font-weight: 700;
+        min-height: 38px;
+        padding: 0 14px;
+        transition: background-color 140ms ease, box-shadow 140ms ease, transform 140ms ease;
+      }
+
+      .primary-action:hover:not(:disabled) {
+        background: #6d5ed8;
+        box-shadow: 0 2px 7px rgba(92, 79, 196, 0.22);
+        transform: translateY(-1px);
+      }
+
+      .primary-action:disabled {
+        cursor: default;
+        opacity: 0.62;
+      }
+
       .run-title-row {
         align-items: center;
         display: flex;
@@ -364,11 +416,13 @@
       }
 
       .detail.is-active,
-      .home.is-active {
+      .home.is-active,
+      .trigger.is-active {
         display: block;
       }
 
-      .home {
+      .home,
+      .trigger {
         display: none;
       }
 
@@ -469,6 +523,152 @@
         font-size: 14px;
         line-height: 1.55;
         margin: 0 0 10px;
+      }
+
+      .config-grid {
+        align-items: start;
+        display: grid;
+        gap: 14px;
+        grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.65fr);
+        margin: 18px 0;
+      }
+
+      .config-details {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        box-shadow: var(--shadow);
+        overflow: hidden;
+      }
+
+      .config-details summary {
+        align-items: center;
+        cursor: pointer;
+        display: flex;
+        gap: 12px;
+        justify-content: space-between;
+        list-style: none;
+        min-height: 52px;
+        padding: 0 16px;
+      }
+
+      .config-details summary::-webkit-details-marker {
+        display: none;
+      }
+
+      .config-summary-title {
+        color: var(--ink);
+        font-size: 15px;
+        font-weight: 600;
+      }
+
+      .config-chevron {
+        border-bottom: 2px solid #526170;
+        border-right: 2px solid #526170;
+        height: 8px;
+        transform: rotate(-45deg);
+        transition: transform 140ms ease;
+        width: 8px;
+      }
+
+      .config-details[open] .config-chevron {
+        transform: rotate(45deg);
+      }
+
+      .config-body {
+        border-top: 1px solid #edf0f4;
+        padding: 16px;
+      }
+
+      .trigger-actions {
+        align-items: center;
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        box-shadow: var(--shadow);
+        display: flex;
+        gap: 12px;
+        justify-content: space-between;
+        margin: 0 0 16px;
+        padding: 14px;
+      }
+
+      .run-status {
+        color: #344054;
+        font-size: 13px;
+        line-height: 1.45;
+        margin: 0;
+        overflow-wrap: anywhere;
+      }
+
+      .run-status.error {
+        color: #9f251b;
+      }
+
+      .run-status.success {
+        color: #2f6f48;
+      }
+
+      .metadata-grid {
+        display: grid;
+        gap: 10px;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .metadata-item {
+        background: var(--panel-soft);
+        border: 1px solid #edf0f4;
+        border-radius: 8px;
+        min-height: 74px;
+        padding: 12px;
+      }
+
+      .metadata-item span {
+        color: var(--muted);
+        display: block;
+        font-size: 12px;
+        margin-bottom: 7px;
+      }
+
+      .metadata-item strong {
+        display: block;
+        font-size: 14px;
+        line-height: 1.4;
+        overflow-wrap: anywhere;
+      }
+
+      .codebase-fields {
+        grid-template-columns: 1fr;
+        margin-top: 12px;
+      }
+
+      .path-value {
+        background: #eef2f6;
+        border-radius: 8px;
+        color: #344054;
+        font-size: 13px;
+        line-height: 1.5;
+        margin: 0;
+        overflow-wrap: anywhere;
+        padding: 12px;
+      }
+
+      .persona-table {
+        min-width: 980px;
+      }
+
+      .persona-name {
+        color: #2d6f9f;
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      .persona-goal {
+        color: #344054;
+        font-size: 12px;
+        line-height: 1.45;
+        max-width: 390px;
+        white-space: normal;
       }
 
       .list {
@@ -643,6 +843,9 @@
           grid-template-columns: repeat(2, minmax(0, 1fr));
         }
 
+        .config-grid {
+          grid-template-columns: 1fr;
+        }
       }
 
       @media (max-width: 680px) {
@@ -653,9 +856,23 @@
         }
 
         .toolbar,
+        .topbar,
+        .trigger-actions,
         .detail-title {
           align-items: stretch;
           flex-direction: column;
+        }
+
+        .brand {
+          width: 100%;
+        }
+
+        .top-nav {
+          width: 100%;
+        }
+
+        .nav-button {
+          flex: 1;
         }
 
         .search {
@@ -664,6 +881,10 @@
         }
 
         .stats {
+          grid-template-columns: 1fr;
+        }
+
+        .metadata-grid {
           grid-template-columns: 1fr;
         }
 
@@ -685,6 +906,10 @@
             <p>Run history, verifier outcomes, fixes, and persona transcripts.</p>
           </div>
         </div>
+        <nav class="top-nav" aria-label="Dashboard pages">
+          <button class="nav-button is-active" type="button" data-page="runs">View All Runs</button>
+          <button class="nav-button" type="button" data-page="trigger">Trigger Run</button>
+        </nav>
       </div>
     </header>
 
@@ -692,7 +917,7 @@
       <section class="home is-active" id="homeView">
         <div class="hero">
           <div>
-            <h2>Runs</h2>
+            <h2>View All Runs</h2>
             <p>Every available run is listed here first. Open a run to inspect reports, verifier decisions, fix results, timeline events, screenshots, and saved reasoning.</p>
           </div>
         </div>
@@ -708,27 +933,49 @@
       </section>
 
       <section class="detail" id="detailView"></section>
+
+      <section class="trigger" id="triggerView">
+        <div class="hero">
+          <div>
+            <h2>Trigger Run</h2>
+            <p>Current run configuration, persona setup, and repository target metadata.</p>
+          </div>
+        </div>
+        <div id="triggerContent"></div>
+      </section>
     </main>
 
     <script>
       const rootUrl = new URL("../../", window.location.href);
       const artifactsUrl = new URL("artifacts/", rootUrl);
       const indexUrl = new URL("dashboard_index.json", artifactsUrl);
+      const configUrl = new URL("configs/run_config.json", rootUrl);
+      const triggerRunUrl = new URL("api/trigger-run", rootUrl);
 
       const state = {
         index: null,
+        runConfig: null,
+        runConfigError: null,
+        runConfigLoading: false,
+        triggerRunBusy: false,
+        triggerRunStatus: "Ready to start with defined personas and configurations.",
+        triggerRunStatusKind: "",
         runs: [],
         selectedRun: null,
         selectedBundle: null,
+        activePage: "runs",
         activeTab: "overview",
         timelinePersona: "all",
       };
 
       const homeView = document.querySelector("#homeView");
       const detailView = document.querySelector("#detailView");
+      const triggerView = document.querySelector("#triggerView");
+      const triggerContent = document.querySelector("#triggerContent");
       const stats = document.querySelector("#stats");
       const runList = document.querySelector("#runList");
       const searchInput = document.querySelector("#searchInput");
+      const navButtons = document.querySelectorAll("[data-page]");
 
       const escapeHtml = value => String(value ?? "").replace(/[&<>"']/g, char => ({
         "&": "&amp;",
@@ -817,6 +1064,61 @@
         return `Status ${labelize(runState.status)} in ${labelize(runState.stage)}.`;
       }
 
+      function updateNavigation(page) {
+        state.activePage = page;
+        navButtons.forEach(button => {
+          button.classList.toggle("is-active", button.dataset.page === page);
+        });
+      }
+
+      function parentPath(value) {
+        const normalized = String(value || "").replace(/\/+$/, "");
+        const index = normalized.lastIndexOf("/");
+        return index > 0 ? normalized.slice(0, index) : normalized || ".";
+      }
+
+      function codebasePath(config) {
+        if (state.index?.artifacts_dir) {
+          return parentPath(state.index.artifacts_dir);
+        }
+        return config?.repo?.path || ".";
+      }
+
+      function commandText(command) {
+        return Array.isArray(command) ? command.join(" ") : "Not configured";
+      }
+
+      function modelText(model) {
+        if (!model) return "Not configured";
+        return [
+          model.model_name,
+          model.reasoning_effort ? `reasoning: ${model.reasoning_effort}` : null,
+        ].filter(Boolean).join(" · ");
+      }
+
+      function viewportText(constraints) {
+        const viewport = constraints?.viewport || {};
+        if (!viewport.width || !viewport.height) return "Not configured";
+        return `${viewport.width}x${viewport.height}`;
+      }
+
+      function metadataItem(label, value) {
+        return `
+          <div class="metadata-item">
+            <span>${escapeHtml(label)}</span>
+            <strong>${escapeHtml(value || "Not configured")}</strong>
+          </div>
+        `;
+      }
+
+      function renderTraitChips(traits) {
+        const entries = Object.entries(traits || {});
+        if (!entries.length) return `<span class="info-chip">No traits</span>`;
+        return entries.map(([name, value]) => (
+          `<span class="info-chip">${labelize(name)}: ${escapeHtml(value)}</span>`
+        )).join("");
+      }
+
       function timelinePersonaOptions(bundle) {
         const runPersonas = Array.isArray(state.selectedRun?.personas) ? state.selectedRun.personas : [];
         const eventPersonas = (bundle?.events || [])
@@ -846,6 +1148,37 @@
         const response = await fetch(nextUrl);
         if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
         return response.json();
+      }
+
+      function sleep(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+      }
+
+      function currentRunIds() {
+        return new Set(state.runs.map(run => run.run_id));
+      }
+
+      async function refreshRunIndex() {
+        state.index = await fetchJson(indexUrl);
+        state.runs = state.index.runs || [];
+        if (state.activePage === "runs") {
+          renderHome();
+        }
+      }
+
+      async function waitForNewRun(previousRunIds) {
+        for (let attempt = 0; attempt < 8; attempt += 1) {
+          await sleep(750);
+          try {
+            await refreshRunIndex();
+            if (state.runs.some(run => !previousRunIds.has(run.run_id))) {
+              return true;
+            }
+          } catch (error) {
+            continue;
+          }
+        }
+        return false;
       }
 
       async function discoverRunsFromDirectoryListing() {
@@ -920,13 +1253,14 @@
           }
         }
         state.runs = state.index.runs || [];
-        renderHome();
-        openRunFromHash();
+        renderRoute();
       }
 
       function renderHome() {
+        updateNavigation("runs");
         homeView.classList.add("is-active");
         detailView.classList.remove("is-active");
+        triggerView.classList.remove("is-active");
         const totals = state.index?.totals || buildTotals(state.runs);
         stats.innerHTML = [
           ["Total Runs", totals.runs ?? 0],
@@ -1004,6 +1338,173 @@
         });
       }
 
+      async function loadRunConfig() {
+        state.runConfigLoading = true;
+        state.runConfigError = null;
+        try {
+          state.runConfig = await fetchJson(configUrl);
+        } catch (error) {
+          state.runConfig = null;
+          state.runConfigError = "Run configuration is not available.";
+        } finally {
+          state.runConfigLoading = false;
+          if (state.activePage === "trigger") {
+            renderTriggerRun();
+          }
+        }
+      }
+
+      function showTriggerRun() {
+        updateNavigation("trigger");
+        state.selectedRun = null;
+        state.selectedBundle = null;
+        homeView.classList.remove("is-active");
+        detailView.classList.remove("is-active");
+        triggerView.classList.add("is-active");
+        renderTriggerRun();
+        if (!state.runConfig && !state.runConfigLoading && !state.runConfigError) {
+          loadRunConfig();
+        }
+      }
+
+      async function triggerRun() {
+        const previousRunIds = currentRunIds();
+        state.triggerRunBusy = true;
+        state.triggerRunStatus = "Starting run...";
+        state.triggerRunStatusKind = "";
+        renderTriggerRun();
+
+        try {
+          const response = await fetch(triggerRunUrl, { method: "POST" });
+          const responseText = await response.text();
+          let payload = {};
+          try {
+            payload = responseText ? JSON.parse(responseText) : {};
+          } catch (parseError) {
+            if (responseText.trim().startsWith("<")) {
+              throw new Error("Trigger endpoint returned HTML. Restart the dashboard with python -m orchestrator.dashboard.serve so /api/trigger-run is available.");
+            }
+            throw new Error("Trigger endpoint returned invalid JSON.");
+          }
+          if (!response.ok) {
+            throw new Error(payload.error || `${response.status} ${response.statusText}`);
+          }
+          const isVisible = await waitForNewRun(previousRunIds);
+          state.triggerRunStatus = isVisible
+            ? `Run started and added to View All Runs. PID ${payload.pid}. Log: ${payload.log_path}`
+            : `Run started. It will appear in View All Runs after the first run state is written. PID ${payload.pid}. Log: ${payload.log_path}`;
+          state.triggerRunStatusKind = "success";
+        } catch (error) {
+          state.triggerRunStatus = `Could not start run: ${error.message}`;
+          state.triggerRunStatusKind = "error";
+        } finally {
+          state.triggerRunBusy = false;
+          renderTriggerRun();
+        }
+      }
+
+      function renderTriggerRun() {
+        if (state.runConfigLoading) {
+          triggerContent.innerHTML = `<div class="empty">Loading run configuration.</div>`;
+          return;
+        }
+        if (state.runConfigError) {
+          triggerContent.innerHTML = `<div class="empty">${escapeHtml(state.runConfigError)}</div>`;
+          return;
+        }
+        const config = state.runConfig;
+        if (!config) {
+          triggerContent.innerHTML = `<div class="empty">Run configuration has not loaded yet.</div>`;
+          return;
+        }
+
+        const personas = Array.isArray(config.personas) ? config.personas : [];
+        const expectedSources = config.verifier?.expected_behavior_sources || [];
+        triggerContent.innerHTML = `
+          <div class="trigger-actions">
+            <p class="run-status ${escapeHtml(state.triggerRunStatusKind)}">${escapeHtml(state.triggerRunStatus)}</p>
+            <button class="primary-action" id="triggerRunButton" type="button" ${state.triggerRunBusy ? "disabled" : ""}>${state.triggerRunBusy ? "Starting..." : "Trigger run"}</button>
+          </div>
+
+          <div class="toolbar">
+            <h3>Personas</h3>
+            <p class="meta-line">${pluralize(personas.length, "persona")}</p>
+          </div>
+
+          <div class="run-list">
+            <div class="run-table-wrap">
+              <table class="run-table persona-table">
+                <thead>
+                  <tr>
+                    <th>Persona</th>
+                    <th>Goal</th>
+                    <th>Traits</th>
+                    <th class="numeric-cell">Actions</th>
+                    <th>Viewport</th>
+                    <th>Model</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${personas.map(persona => `
+                    <tr>
+                      <td>
+                        <div class="persona-name">${escapeHtml(persona.persona_id)}</div>
+                        <div class="run-meta">${persona.constraints?.headless ? "headless" : "visible"} · ${escapeHtml(persona.constraints?.slow_mo_ms ?? 0)}ms slow motion</div>
+                      </td>
+                      <td><div class="persona-goal">${escapeHtml(persona.goal)}</div></td>
+                      <td><div class="pill-row">${renderTraitChips(persona.traits)}</div></td>
+                      <td class="numeric-cell">${escapeHtml(persona.constraints?.max_actions ?? "Not configured")}</td>
+                      <td>${escapeHtml(viewportText(persona.constraints))}</td>
+                      <td>${escapeHtml(modelText(persona.model))}</td>
+                    </tr>
+                  `).join("")}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="config-grid">
+            <details class="config-details" open>
+              <summary>
+                <span class="config-summary-title">Config Metadata</span>
+                <span class="config-chevron" aria-hidden="true"></span>
+              </summary>
+              <div class="config-body">
+                <div class="metadata-grid">
+                  ${metadataItem("Config file", "configs/run_config.json")}
+                  ${metadataItem("Run prefix", config.run_id_prefix)}
+                  ${metadataItem("App base URL", config.app?.base_url)}
+                  ${metadataItem("Health URL", config.app?.health_url)}
+                  ${metadataItem("App start command", commandText(config.app?.start_command))}
+                  ${metadataItem("Stage 0 seed", config.stage0?.bug_seed)}
+                  ${metadataItem("Verifier model", modelText(config.verifier?.model))}
+                  ${metadataItem("Fixing model", modelText(config.fixing?.model))}
+                  ${metadataItem("Expected behavior sources", expectedSources.join(", "))}
+                  ${metadataItem("Promotion target", config.promotion_policy?.target_file)}
+                </div>
+              </div>
+            </details>
+            <details class="config-details" open>
+              <summary>
+                <span class="config-summary-title">Codebase</span>
+                <span class="config-chevron" aria-hidden="true"></span>
+              </summary>
+              <div class="config-body">
+                <p class="path-value">${escapeHtml(codebasePath(config))}</p>
+                <div class="metadata-grid codebase-fields">
+                  ${metadataItem("Repo path", config.repo?.path)}
+                  ${metadataItem("Entrypoint", config.repo?.entrypoint)}
+                  ${metadataItem("Test command", config.repo?.test_command)}
+                  ${metadataItem("Sandbox root", config.sandbox_root)}
+                </div>
+              </div>
+            </details>
+          </div>
+        `;
+
+        triggerContent.querySelector("#triggerRunButton")?.addEventListener("click", triggerRun);
+      }
+
       async function openRun(runId) {
         const run = state.runs.find(item => item.run_id === runId);
         if (!run) return;
@@ -1029,11 +1530,13 @@
 
       function openRunFromHash() {
         const match = window.location.hash.match(/run=([^&]+)/);
-        if (!match) return;
+        if (!match) return false;
         const runId = decodeURIComponent(match[1]);
         if (state.runs.some(run => run.run_id === runId)) {
           openRun(runId);
+          return true;
         }
+        return false;
       }
 
       function showHome() {
@@ -1042,6 +1545,18 @@
         state.selectedBundle = null;
         state.timelinePersona = "all";
         renderHome();
+      }
+
+      function renderRoute() {
+        const hash = window.location.hash.replace(/^#/, "");
+        if (hash === "trigger-run") {
+          showTriggerRun();
+          return;
+        }
+        if (hash.startsWith("run=") && openRunFromHash()) {
+          return;
+        }
+        showHome();
       }
 
       function renderDetail(notice = "") {
@@ -1059,8 +1574,10 @@
           summary: run.summary || {},
         };
 
+        updateNavigation("runs");
         homeView.classList.remove("is-active");
         detailView.classList.add("is-active");
+        triggerView.classList.remove("is-active");
 
         detailView.innerHTML = `
           <div class="detail-nav">
@@ -1264,8 +1781,21 @@
       }
 
       searchInput.addEventListener("input", renderRunList);
+      navButtons.forEach(button => {
+        button.addEventListener("click", () => {
+          if (button.dataset.page === "trigger") {
+            if (window.location.hash !== "#trigger-run") {
+              window.location.hash = "trigger-run";
+            } else {
+              showTriggerRun();
+            }
+            return;
+          }
+          showHome();
+        });
+      });
       window.addEventListener("hashchange", () => {
-        if (!window.location.hash) showHome();
+        renderRoute();
       });
 
       loadIndex();
