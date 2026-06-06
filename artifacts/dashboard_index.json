@@ -1,7 +1,42 @@
 {
   "artifacts_dir": "/Users/donavanyieh/Desktop/hackathon_prod/dywa_prod/DYWA_prod/artifacts",
-  "generated_at": "2026-06-06T06:25:47Z",
+  "generated_at": "2026-06-06T07:23:03Z",
   "runs": [
+    {
+      "bundle_path": null,
+      "completed_at": null,
+      "components": {
+        "dashboard": "running",
+        "fixing_agent": "idle",
+        "persona_agents": "running",
+        "shopping_app": "running",
+        "verifier": "idle"
+      },
+      "counts": {
+        "bug_reports": 0,
+        "decision_artifacts": 0,
+        "fix_results": 0,
+        "screenshots": 0,
+        "transcript_events": 0,
+        "verifier_decisions": 0
+      },
+      "has_bundle": false,
+      "models": [],
+      "personas": [],
+      "run_dir": "run_c68cea7a",
+      "run_id": "run_c68cea7a",
+      "stage": "persona_exploration",
+      "started_at": "2026-06-06T07:23:03Z",
+      "status": "running",
+      "summary": {
+        "confirmed_total": 0,
+        "duplicate_total": 0,
+        "fixed_total": 0,
+        "invalid_total": 0,
+        "reports_total": 0
+      },
+      "updated_at": "2026-06-06T07:23:03Z"
+    },
     {
       "bundle_path": "run_7e70d668/dashboard_bundle.json",
       "completed_at": "2026-06-06T06:25:47Z",
@@ -84,7 +119,7 @@
         "invalid_total": 0,
         "reports_total": 4
       },
-      "updated_at": "2026-06-06T06:28:26Z"
+      "updated_at": "2026-06-06T05:44:19Z"
     },
     {
       "bundle_path": "run_29e27059/dashboard_bundle.json",
@@ -126,7 +161,7 @@
         "invalid_total": 0,
         "reports_total": 4
       },
-      "updated_at": "2026-06-06T03:10:53Z"
+      "updated_at": "2026-06-06T02:58:54Z"
     }
   ],
   "schema_version": "1.0.0",
@@ -136,7 +171,7 @@
     "failed": 0,
     "fixed": 5,
     "reports": 12,
-    "running": 0,
-    "runs": 3
+    "running": 1,
+    "runs": 4
   }
 }
