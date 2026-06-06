@@ -12,7 +12,7 @@ from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from threading import Lock
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 
 from orchestrator.dashboard.build_bundle import write_dashboard_index
 
@@ -20,11 +20,14 @@ from orchestrator.dashboard.build_bundle import write_dashboard_index
 ROOT = Path(__file__).resolve().parents[2]
 DASHBOARD_PATH = "/orchestrator/dashboard/index.html"
 TRIGGER_RUN_PATH = "/api/trigger-run"
+TRIGGER_LOG_PATH = "/api/trigger-log"
 TRIGGER_STATUS_PATH = "/api/trigger-status"
 RUN_LOCK = Lock()
 RUN_PROCESS: subprocess.Popen[str] | None = None
 RUN_STARTED_AT: str | None = None
 RUN_LOG_PATH: Path | None = None
+DEFAULT_LOG_TAIL_BYTES = 24_000
+MAX_LOG_TAIL_BYTES = 200_000
 
 
 def utc_timestamp() -> str:
@@ -63,6 +66,38 @@ def trigger_status_payload() -> dict[str, object]:
     }
 
 
+def read_log_tail(log_path: Path | None, max_bytes: int) -> tuple[str, int, bool]:
+    if log_path is None or not log_path.exists():
+        return "", 0, False
+
+    file_size = log_path.stat().st_size
+    start = max(file_size - max_bytes, 0)
+    with log_path.open("rb") as log_file:
+        log_file.seek(start)
+        raw_content = log_file.read()
+
+    text = raw_content.decode("utf-8", errors="replace")
+    if start > 0:
+        first_newline = text.find("\n")
+        if first_newline >= 0:
+            text = text[first_newline + 1 :]
+    return text, file_size, start > 0
+
+
+def trigger_log_payload(max_bytes: int = DEFAULT_LOG_TAIL_BYTES) -> dict[str, object]:
+    payload = trigger_status_payload()
+    text, size, truncated = read_log_tail(RUN_LOG_PATH, max_bytes)
+    payload.update(
+        {
+            "text": text,
+            "size": size,
+            "truncated": truncated,
+            "max_bytes": max_bytes,
+        }
+    )
+    return payload
+
+
 def start_run_process() -> dict[str, object]:
     global RUN_LOG_PATH
     global RUN_PROCESS
@@ -97,9 +132,20 @@ class DashboardRequestHandler(SimpleHTTPRequestHandler):
         self.wfile.write(body)
 
     def do_GET(self) -> None:
-        if urlparse(self.path).path == TRIGGER_STATUS_PATH:
+        parsed = urlparse(self.path)
+        if parsed.path == TRIGGER_STATUS_PATH:
             with RUN_LOCK:
                 self.send_json(trigger_status_payload())
+            return
+        if parsed.path == TRIGGER_LOG_PATH:
+            requested_bytes = parse_qs(parsed.query).get("bytes", [str(DEFAULT_LOG_TAIL_BYTES)])[0]
+            try:
+                max_bytes = int(requested_bytes)
+            except ValueError:
+                max_bytes = DEFAULT_LOG_TAIL_BYTES
+            max_bytes = min(max(max_bytes, 1_000), MAX_LOG_TAIL_BYTES)
+            with RUN_LOCK:
+                self.send_json(trigger_log_payload(max_bytes))
             return
         super().do_GET()
 

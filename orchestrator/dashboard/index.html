@@ -626,6 +626,66 @@
         color: #2f6f48;
       }
 
+      .log-panel {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        box-shadow: var(--shadow);
+        margin: 0 0 18px;
+        overflow: hidden;
+      }
+
+      .log-panel-header {
+        align-items: center;
+        display: flex;
+        gap: 12px;
+        justify-content: space-between;
+        padding: 13px 14px;
+      }
+
+      .log-panel-title {
+        min-width: 0;
+      }
+
+      .log-panel-title h3 {
+        font-size: 15px;
+        margin: 0 0 4px;
+      }
+
+      .log-path {
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.45;
+        margin: 0;
+        overflow-wrap: anywhere;
+      }
+
+      .log-note {
+        border-top: 1px solid #edf0f4;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.45;
+        margin: 0;
+        padding: 9px 14px;
+      }
+
+      .log-console {
+        background: #111827;
+        color: #d5dae3;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+        font-size: 12px;
+        line-height: 1.55;
+        margin: 0;
+        max-height: 340px;
+        overflow: auto;
+        padding: 14px;
+        white-space: pre-wrap;
+      }
+
+      .log-console.is-empty {
+        color: #9aa7b6;
+      }
+
       .metadata-grid {
         display: grid;
         gap: 10px;
@@ -972,6 +1032,7 @@
       const indexUrl = new URL("dashboard_index.json", artifactsUrl);
       const configUrl = new URL("configs/run_config.json", rootUrl);
       const triggerRunUrl = new URL("api/trigger-run", rootUrl);
+      const triggerLogUrl = new URL("api/trigger-log", rootUrl);
 
       const state = {
         index: null,
@@ -981,6 +1042,17 @@
         triggerRunBusy: false,
         triggerRunStatus: "Ready to start with defined personas and configurations.",
         triggerRunStatusKind: "",
+        triggerLog: {
+          error: null,
+          logPath: null,
+          maxBytes: 0,
+          returnCode: null,
+          size: 0,
+          startedAt: null,
+          status: "idle",
+          text: "",
+          truncated: false,
+        },
         runs: [],
         selectedRun: null,
         selectedBundle: null,
@@ -997,6 +1069,7 @@
       const runList = document.querySelector("#runList");
       const searchInput = document.querySelector("#searchInput");
       const navButtons = document.querySelectorAll("[data-page]");
+      let triggerLogTimer = null;
 
       const escapeHtml = value => String(value ?? "").replace(/[&<>"']/g, char => ({
         "&": "&amp;",
@@ -1171,6 +1244,161 @@
         return response.json();
       }
 
+      function formatBytes(value) {
+        const bytes = Number(value || 0);
+        if (bytes < 1024) return `${bytes} B`;
+        if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+        return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+      }
+
+      function triggerLogShouldShow() {
+        const log = state.triggerLog;
+        return log.status !== "idle" || Boolean(log.text || log.logPath);
+      }
+
+      function triggerButtonDisabled() {
+        return state.triggerRunBusy || state.triggerLog.status === "running";
+      }
+
+      function triggerButtonLabel() {
+        if (state.triggerRunBusy) return "Starting...";
+        if (state.triggerLog.status === "running") return "Run running";
+        return "Trigger run";
+      }
+
+      function renderTriggerLogViewer() {
+        const log = state.triggerLog;
+        if (!triggerLogShouldShow()) return "";
+        const content = log.error
+          ? `Could not load log: ${log.error}`
+          : log.text || "Waiting for log output.";
+        const notes = [
+          log.truncated ? `Showing latest ${formatBytes(log.maxBytes)} of ${formatBytes(log.size)}.` : null,
+          log.startedAt ? `Started ${formatDate(log.startedAt)}.` : null,
+        ].filter(Boolean);
+
+        return `
+          <section class="log-panel" id="triggerLogPanel" aria-live="polite">
+            <div class="log-panel-header">
+              <div class="log-panel-title">
+                <h3>Run Log</h3>
+                <p class="log-path">${escapeHtml(log.logPath || "Log path will appear after the run starts.")}</p>
+              </div>
+              <div class="pill-row">${pill(log.status || "idle")}</div>
+            </div>
+            <pre class="log-console ${log.text ? "" : "is-empty"}" id="triggerLogText">${escapeHtml(content)}</pre>
+            ${notes.length ? `<p class="log-note">${escapeHtml(notes.join(" "))}</p>` : ""}
+          </section>
+        `;
+      }
+
+      function updateTriggerActionControls() {
+        const statusNode = triggerContent.querySelector("#triggerRunStatus");
+        if (statusNode) {
+          statusNode.className = `run-status ${state.triggerRunStatusKind}`.trim();
+          statusNode.textContent = state.triggerRunStatus;
+        }
+
+        const button = triggerContent.querySelector("#triggerRunButton");
+        if (button) {
+          button.disabled = triggerButtonDisabled();
+          button.textContent = triggerButtonLabel();
+        }
+      }
+
+      function updateTriggerLogPanel() {
+        if (state.activePage !== "trigger") return;
+
+        const existingPanel = triggerContent.querySelector("#triggerLogPanel");
+        if (!triggerLogShouldShow()) {
+          existingPanel?.remove();
+          updateTriggerActionControls();
+          return;
+        }
+
+        const nextPanel = renderTriggerLogViewer();
+        if (existingPanel) {
+          existingPanel.outerHTML = nextPanel;
+        } else {
+          const triggerActions = triggerContent.querySelector(".trigger-actions");
+          if (!triggerActions) {
+            renderTriggerRun();
+            return;
+          }
+          triggerActions.insertAdjacentHTML("afterend", nextPanel);
+        }
+
+        const logText = triggerContent.querySelector("#triggerLogText");
+        if (logText) {
+          logText.scrollTop = logText.scrollHeight;
+        }
+        updateTriggerActionControls();
+      }
+
+      function applyTriggerLogPayload(payload) {
+        const status = payload.status || "idle";
+        state.triggerLog = {
+          error: null,
+          logPath: payload.log_path || null,
+          maxBytes: Number(payload.max_bytes ?? 0),
+          returnCode: payload.return_code ?? null,
+          size: Number(payload.size ?? 0),
+          startedAt: payload.started_at || null,
+          status,
+          text: String(payload.text ?? ""),
+          truncated: Boolean(payload.truncated),
+        };
+
+        if (status === "running") {
+          state.triggerRunStatus = `Run is running. PID ${payload.pid}. Log: ${payload.log_path}`;
+          state.triggerRunStatusKind = "success";
+        } else if (status === "completed" && payload.log_path) {
+          state.triggerRunStatus = `Last triggered run completed. Log: ${payload.log_path}`;
+          state.triggerRunStatusKind = "success";
+        } else if (status === "failed" && payload.log_path) {
+          state.triggerRunStatus = `Last triggered run failed. Log: ${payload.log_path}`;
+          state.triggerRunStatusKind = "error";
+        }
+      }
+
+      async function refreshTriggerLog() {
+        const logUrl = new URL(triggerLogUrl);
+        logUrl.searchParams.set("bytes", "60000");
+
+        try {
+          const payload = await fetchJson(logUrl);
+          applyTriggerLogPayload(payload);
+          updateTriggerLogPanel();
+
+          if (payload.status === "completed" || payload.status === "failed") {
+            stopTriggerLogPolling();
+            try {
+              await refreshRunIndex();
+            } catch (error) {
+              // The log viewer should still work even if the run index is between writes.
+            }
+          } else if (payload.status === "idle") {
+            stopTriggerLogPolling();
+          }
+        } catch (error) {
+          state.triggerLog.error = error.message;
+          updateTriggerLogPanel();
+          stopTriggerLogPolling();
+        }
+      }
+
+      function startTriggerLogPolling() {
+        if (triggerLogTimer) return;
+        refreshTriggerLog();
+        triggerLogTimer = window.setInterval(refreshTriggerLog, 1500);
+      }
+
+      function stopTriggerLogPolling() {
+        if (!triggerLogTimer) return;
+        window.clearInterval(triggerLogTimer);
+        triggerLogTimer = null;
+      }
+
       function sleep(ms) {
         return new Promise(resolve => setTimeout(resolve, ms));
       }
@@ -1278,6 +1506,7 @@
       }
 
       function renderHome() {
+        stopTriggerLogPolling();
         updateNavigation("runs");
         homeView.classList.add("is-active");
         detailView.classList.remove("is-active");
@@ -1386,6 +1615,7 @@
         if (!state.runConfig && !state.runConfigLoading && !state.runConfigError) {
           loadRunConfig();
         }
+        startTriggerLogPolling();
       }
 
       async function triggerRun() {
@@ -1393,6 +1623,17 @@
         state.triggerRunBusy = true;
         state.triggerRunStatus = "Starting run...";
         state.triggerRunStatusKind = "";
+        state.triggerLog = {
+          error: null,
+          logPath: null,
+          maxBytes: 0,
+          returnCode: null,
+          size: 0,
+          startedAt: null,
+          status: "idle",
+          text: "",
+          truncated: false,
+        };
         renderTriggerRun();
 
         try {
@@ -1408,13 +1649,23 @@
             throw new Error("Trigger endpoint returned invalid JSON.");
           }
           if (!response.ok) {
+            if (payload.log_path) {
+              applyTriggerLogPayload(payload);
+              updateTriggerLogPanel();
+              startTriggerLogPolling();
+            }
             throw new Error(payload.error || `${response.status} ${response.statusText}`);
           }
+          applyTriggerLogPayload(payload);
+          updateTriggerLogPanel();
+          startTriggerLogPolling();
           const isVisible = await waitForNewRun(previousRunIds);
-          state.triggerRunStatus = isVisible
-            ? `Run started and added to View All Runs. PID ${payload.pid}. Log: ${payload.log_path}`
-            : `Run started. It will appear in View All Runs after the first run state is written. PID ${payload.pid}. Log: ${payload.log_path}`;
-          state.triggerRunStatusKind = "success";
+          if (state.triggerLog.status === "running" || state.triggerLog.status === "idle") {
+            state.triggerRunStatus = isVisible
+              ? `Run started and added to View All Runs. PID ${payload.pid}. Log: ${payload.log_path}`
+              : `Run started. It will appear in View All Runs after the first run state is written. PID ${payload.pid}. Log: ${payload.log_path}`;
+            state.triggerRunStatusKind = "success";
+          }
         } catch (error) {
           state.triggerRunStatus = `Could not start run: ${error.message}`;
           state.triggerRunStatusKind = "error";
@@ -1426,16 +1677,16 @@
 
       function renderTriggerRun() {
         if (state.runConfigLoading) {
-          triggerContent.innerHTML = `<div class="empty">Loading run configuration.</div>`;
+          triggerContent.innerHTML = `<div class="empty">Loading run configuration.</div>${renderTriggerLogViewer()}`;
           return;
         }
         if (state.runConfigError) {
-          triggerContent.innerHTML = `<div class="empty">${escapeHtml(state.runConfigError)}</div>`;
+          triggerContent.innerHTML = `<div class="empty">${escapeHtml(state.runConfigError)}</div>${renderTriggerLogViewer()}`;
           return;
         }
         const config = state.runConfig;
         if (!config) {
-          triggerContent.innerHTML = `<div class="empty">Run configuration has not loaded yet.</div>`;
+          triggerContent.innerHTML = `<div class="empty">Run configuration has not loaded yet.</div>${renderTriggerLogViewer()}`;
           return;
         }
 
@@ -1443,9 +1694,11 @@
         const expectedSources = config.verifier?.expected_behavior_sources || [];
         triggerContent.innerHTML = `
           <div class="trigger-actions">
-            <p class="run-status ${escapeHtml(state.triggerRunStatusKind)}">${escapeHtml(state.triggerRunStatus)}</p>
-            <button class="primary-action" id="triggerRunButton" type="button" ${state.triggerRunBusy ? "disabled" : ""}>${state.triggerRunBusy ? "Starting..." : "Trigger run"}</button>
+            <p class="run-status ${escapeHtml(state.triggerRunStatusKind)}" id="triggerRunStatus">${escapeHtml(state.triggerRunStatus)}</p>
+            <button class="primary-action" id="triggerRunButton" type="button" ${triggerButtonDisabled() ? "disabled" : ""}>${triggerButtonLabel()}</button>
           </div>
+
+          ${renderTriggerLogViewer()}
 
           <div class="toolbar">
             <h3>Personas</h3>
@@ -1527,6 +1780,7 @@
       }
 
       async function openRun(runId) {
+        stopTriggerLogPolling();
         const run = state.runs.find(item => item.run_id === runId);
         if (!run) return;
         window.location.hash = `run=${encodeURIComponent(runId)}`;
