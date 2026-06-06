@@ -53,7 +53,7 @@
     },
     {
       "persona_id": "persona_gb_price",
-      "goal": "Move through the group-buy checkout (Group Buy -> Checkout -> Place Order -> Confirmation) auditing pricing math: unit prices, discounts, quantities, payable totals, and the confirmation screen. Flag any internal inconsistency between displayed numbers. Report only observed evidence.",
+      "goal": "Walk the direct purchase flow in order: click the Buy Now button (not Group Buy), reach the Checkout page, Place Order, then reach the Order Confirmation page. Audit pricing math throughout: unit prices, discounts, quantities, payable totals, and the confirmation screen. Flag any internal inconsistency between displayed numbers. Report only observed evidence.",
       "traits": {
         "patience": "high",
         "attention_to_detail": "very_high",
@@ -78,7 +78,7 @@
     },
     {
       "persona_id": "persona_gb_contract",
-      "goal": "Walk the group-buy flow probing UI-observable source-of-truth mismatches: identifiers shown vs used, boundary quantities, and invalid inputs the forms accept. Stay within what the browser UI exposes; do not claim API-level findings you cannot observe. Report only observed evidence.",
+      "goal": "Walk the direct purchase flow in order: click the Buy Now button (not Group Buy), reach the Checkout page, Place Order, then reach the Order Confirmation page. Probe UI-observable source-of-truth mismatches along the way: identifiers shown vs used, boundary quantities, and invalid inputs the forms accept. Stay within what the browser UI exposes; do not claim API-level findings you cannot observe. Report only observed evidence.",
       "traits": {
         "patience": "high",
         "attention_to_detail": "high",
@@ -103,7 +103,7 @@
     },
     {
       "persona_id": "persona_gb_security",
-      "goal": "Walk the group-buy flow flagging any visible permission, ownership, or finalization issue from a single session, such as controls that let a non-owner finalize or place an order before the group is complete. Treat cross-session isolation as a limitation, not an invented bug. Report only observed evidence.",
+      "goal": "Walk the group-buy lifecycle in order: click the Group Buy button, reach the Checkout page, Place Order, reach the Order Confirmation page, then open the Group Buy page. Along the way flag any visible permission, ownership, or finalization issue from a single session, such as controls that let a non-owner finalize or place an order before the group is complete. Treat cross-session isolation as a limitation, not an invented bug. Report only observed evidence.",
       "traits": {
         "patience": "medium",
         "attention_to_detail": "high",
@@ -128,7 +128,7 @@
     },
     {
       "persona_id": "persona_gb_data_integrity",
-      "goal": "Walk the group-buy flow and check invariant drift: participant counts, order/group status, status regressions across the lifecycle, and stale state after returning to the Group Buy page. Flag inconsistencies between what an action did and what later screens show. Report only observed evidence.",
+      "goal": "Walk the group-buy lifecycle in order: click the Group Buy button, reach the Checkout page, Place Order, reach the Order Confirmation page, then open the Group Buy page. Check invariant drift along the way: participant counts, order/group status, status regressions across the lifecycle, and stale state after returning to the Group Buy page. Flag inconsistencies between what an action did and what later screens show. Report only observed evidence.",
       "traits": {
         "patience": "high",
         "attention_to_detail": "very_high",
