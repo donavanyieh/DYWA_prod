@@ -13,11 +13,23 @@ def _extract_json(text: str) -> dict[str, Any]:
         cleaned = cleaned.strip("`")
         if cleaned.startswith("json"):
             cleaned = cleaned[4:]
+
+    decoder = json.JSONDecoder()
     start = cleaned.find("{")
-    end = cleaned.rfind("}")
-    if start == -1 or end == -1:
+    if start == -1:
         raise ValueError(f"Model response did not contain a JSON object: {text[:200]}")
-    return json.loads(cleaned[start : end + 1])
+
+    while start != -1:
+        try:
+            parsed, _end = decoder.raw_decode(cleaned[start:])
+        except json.JSONDecodeError:
+            start = cleaned.find("{", start + 1)
+            continue
+        if isinstance(parsed, dict):
+            return parsed
+        start = cleaned.find("{", start + 1)
+
+    raise ValueError(f"Model response did not contain a valid JSON object: {text[:200]}")
 
 
 def _image_content(path: Path) -> dict[str, str]:
@@ -29,13 +41,18 @@ def _image_content(path: Path) -> dict[str, str]:
 
 
 class OpenAIJsonClient:
-    def __init__(self, model: str = "gpt-5", reasoning_effort: str | None = "medium") -> None:
+    def __init__(
+        self,
+        model: str = "gpt-5",
+        reasoning_effort: str | None = "medium",
+        timeout_seconds: float | None = None,
+    ) -> None:
         if not os.environ.get("OPENAI_API_KEY"):
             raise RuntimeError("OPENAI_API_KEY is required for live OpenAI model runners.")
 
         from openai import OpenAI
 
-        self._client = OpenAI()
+        self._client = OpenAI(timeout=timeout_seconds) if timeout_seconds else OpenAI()
         self._model = model
         self._reasoning_effort = reasoning_effort
 

@@ -1,0 +1,13 @@
+{
+  "bug_seed": "default_buggy_shop_seed",
+  "completed_at": "2026-06-06T05:37:07Z",
+  "error": null,
+  "reset_id": "reset_b41851b7",
+  "restored_files": [
+    "app/main.py"
+  ],
+  "run_id": "run_9660eee3",
+  "schema_version": "1.0.0",
+  "started_at": "2026-06-06T05:37:07Z",
+  "status": "completed"
+}

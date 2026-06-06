@@ -1,0 +1,38 @@
+{
+  "artifacts": [
+    {
+      "artifact_id": "art_f38d5e090b",
+      "created_at": "2026-06-06T05:44:19Z",
+      "metadata": {},
+      "mime_type": "text/plain",
+      "schema_version": "1.0.0",
+      "sha256": null,
+      "type": "test_report",
+      "uri": "/Users/donavanyieh/Desktop/hackathon_prod/dywa_prod/DYWA_prod/artifacts/run_9660eee3/fixing/task_002/test_report.txt"
+    }
+  ],
+  "canonical_bug_id": "checkout_allows_empty_cart_and_creates_order",
+  "changed_files": [
+    "app/main.py"
+  ],
+  "completed_at": "2026-06-06T05:44:19Z",
+  "duration_ms": 126982,
+  "error": null,
+  "metadata": {},
+  "promoted": true,
+  "result_id": "fixres_0501f9b69d",
+  "run_id": "run_9660eee3",
+  "schema_version": "1.0.0",
+  "started_at": "2026-06-06T05:42:12Z",
+  "status": "fixed",
+  "summary": "Disabled checkout on empty cart in UI and tightened server-side validation to prevent orders when cart has no items.",
+  "task_id": "fix_39cb4dad79",
+  "tests": {
+    "command": "pytest",
+    "duration_ms": 277,
+    "failed": 0,
+    "passed": 0,
+    "report_artifact_id": "art_f38d5e090b",
+    "status": "passed"
+  }
+}

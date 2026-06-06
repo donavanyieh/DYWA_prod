@@ -1,0 +1,19 @@
+{
+  "canonical_bug_id": "cart_total_shows_unit_price_instead_of_subtotal",
+  "classification": "confirmed",
+  "confidence": 0.95,
+  "created_at": "2026-06-06T05:41:34Z",
+  "decision_id": "verdict_aaa41ce2ff",
+  "duplicate_of": null,
+  "fix_task": {
+    "schema_version": "1.0.0",
+    "task_id": "fix_36175cf094"
+  },
+  "metadata": {},
+  "reasoning_summary": "Evidence shows Total remains $12.50 while quantity is 2 and subtotal is $25.00, violating totals consistency.",
+  "report_id": "bugrep_f5aee972ad",
+  "required_next_action": "send_to_fixing_agent",
+  "run_id": "run_9660eee3",
+  "schema_version": "1.0.0",
+  "severity": "high"
+}

@@ -166,7 +166,7 @@
   "fixing": {
     "model": {
       "provider": "openai",
-      "model_name": "gpt-5",
+      "model_name": "gpt-5.3-codex",
       "mode": "live",
       "reasoning_effort": "high"
     }

@@ -54,7 +54,27 @@ Those files include the model name, page state, screenshot reference, recent his
 
 ## View The Dashboard
 
-Open [orchestrator/dashboard/index.html](/Users/donavanyieh/Documents/test/orchestrator/dashboard/index.html) in a browser, then choose the generated `dashboard_bundle.json` from the latest `artifacts/run_*` directory.
+The dashboard is a static HTML/JavaScript page. It does not need an app backend, but it should be served over HTTP so the browser can fetch `artifacts/dashboard_index.json`, run bundles, and screenshot assets reliably.
+
+Run the dashboard with one command from the repo root:
+
+```bash
+python -m orchestrator.dashboard.serve
+```
+
+This refreshes `artifacts/dashboard_index.json`, starts a local static file server, and prints the dashboard URL:
+
+```bash
+http://127.0.0.1:9000/orchestrator/dashboard/index.html
+```
+
+If port `9000` is busy, the command automatically tries the next available port and prints the URL it selected. Use `Ctrl+C` to stop the dashboard server.
+
+The dashboard opens on a home page with every available run and its metadata. Click a run to inspect its reports, verifier decisions, fix results, timeline, and artifacts.
+
+Why use a server for a static site: when opened directly as a `file://` page, browser security rules can block or limit JavaScript `fetch(...)` calls to local JSON files and assets. The dashboard command only serves local files from this repo; it is not an app backend.
+
+The orchestrator refreshes `artifacts/dashboard_index.json` during live runs. Serve the dashboard over HTTP instead of opening the HTML file directly, because the home page reads run metadata and artifacts with browser `fetch(...)` calls.
 
 ## Useful Checks
 
@@ -87,7 +107,7 @@ Then visit `http://127.0.0.1:8765`.
 
 ## Configuration
 
-The live run is controlled by [configs/run_config.json](/Users/donavanyieh/Documents/test/configs/run_config.json). Change this file when you change the demo app, port, persona goals, Stage 0 restore files, expected behavior sources, repo entrypoint, test command, or promotion target.
+The live run is controlled by [configs/run_config.json](/Users/donavanyieh/Desktop/hackathon_prod/dywa_prod/DYWA_prod/configs/run_config.json). Change this file when you change the demo app, port, persona goals, Stage 0 restore files, expected behavior sources, repo entrypoint, test command, or promotion target.
 
 The default config currently runs five group-buy personas:
 
@@ -127,7 +147,7 @@ Set `headless` to `false` to watch the browser. Increase `slow_mo_ms` if you wan
 
 ## Model Selection
 
-Models are configured in [configs/run_config.json](/Users/donavanyieh/Documents/test/configs/run_config.json). Each persona has its own model block, and the verifier and fixing agent have separate model blocks:
+Models are configured in [configs/run_config.json](/Users/donavanyieh/Desktop/hackathon_prod/dywa_prod/DYWA_prod/configs/run_config.json). Each persona has its own model block, and the verifier and fixing agent have separate model blocks:
 
 ```json
 {

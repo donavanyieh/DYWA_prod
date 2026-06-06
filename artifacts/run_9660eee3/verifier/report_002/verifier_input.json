@@ -1,0 +1,285 @@
+{
+  "artifacts": [
+    {
+      "artifact_id": "art_43e6c39241",
+      "created_at": "2026-06-06T05:38:10Z",
+      "metadata": {
+        "viewport": "configured"
+      },
+      "mime_type": "image/png",
+      "schema_version": "1.0.0",
+      "sha256": null,
+      "type": "screenshot",
+      "uri": "/Users/donavanyieh/Desktop/hackathon_prod/dywa_prod/DYWA_prod/artifacts/run_9660eee3/personas/persona_price_auditor/screen_002.png"
+    },
+    {
+      "artifact_id": "art_1daf51bb5b",
+      "created_at": "2026-06-06T05:38:26Z",
+      "metadata": {
+        "kind": "persona_decision",
+        "model_name": "gpt-5"
+      },
+      "mime_type": "application/json",
+      "schema_version": "1.0.0",
+      "sha256": null,
+      "type": "text_log",
+      "uri": "/Users/donavanyieh/Desktop/hackathon_prod/dywa_prod/DYWA_prod/artifacts/run_9660eee3/personas/persona_price_auditor/decision_002.json"
+    }
+  ],
+  "expected_behavior_sources": [
+    "/Users/donavanyieh/Desktop/hackathon_prod/dywa_prod/DYWA_prod/specs/app_expected_behavior.md"
+  ],
+  "known_confirmed_bugs": [],
+  "related_reports": [
+    {
+      "confidence": 0.92,
+      "created_at": "2026-06-06T05:37:51Z",
+      "environment": {
+        "app_base_url": "http://127.0.0.1:8765",
+        "browser": "chromium",
+        "viewport": "1440x900"
+      },
+      "evidence": {
+        "artifacts": [
+          {
+            "artifact_id": "art_253a57ee36",
+            "created_at": "2026-06-06T05:37:27Z",
+            "metadata": {
+              "viewport": "configured"
+            },
+            "mime_type": "image/png",
+            "schema_version": "1.0.0",
+            "sha256": null,
+            "type": "screenshot",
+            "uri": "/Users/donavanyieh/Desktop/hackathon_prod/dywa_prod/DYWA_prod/artifacts/run_9660eee3/personas/persona_general_shopper/screen_002.png"
+          },
+          {
+            "artifact_id": "art_79e70eac9b",
+            "created_at": "2026-06-06T05:37:50Z",
+            "metadata": {
+              "kind": "persona_decision",
+              "model_name": "gpt-5"
+            },
+            "mime_type": "application/json",
+            "schema_version": "1.0.0",
+            "sha256": null,
+            "type": "text_log",
+            "uri": "/Users/donavanyieh/Desktop/hackathon_prod/dywa_prod/DYWA_prod/artifacts/run_9660eee3/personas/persona_general_shopper/decision_002.json"
+          }
+        ],
+        "transcript_event_ids": [
+          "evt_70ae86fc17",
+          "evt_9437e89940",
+          "evt_dee9163cff"
+        ]
+      },
+      "expected_behavior": "Total should reflect the full cost of items in the cart. For a single line item with quantity 2 at $12.50 each, Total should be $25.00.",
+      "metadata": {},
+      "observed_behavior": "With quantity set to 2, the cart displays Unit $12.50 | Subtotal $25.00 but Total: $12.50.",
+      "persona_id": "persona_general_shopper",
+      "report_id": "bugrep_f5aee972ad",
+      "reproduction_steps": [
+        "Open the Demo Shop home page.",
+        "Click 'Add to cart' on Blue Shockproof Phone Case.",
+        "Set the cart quantity to 2.",
+        "Observe that Subtotal updates to $25.00 but Total remains $12.50."
+      ],
+      "run_id": "run_9660eee3",
+      "schema_version": "1.0.0",
+      "severity_guess": "medium",
+      "title": "Cart Total shows unit price instead of subtotal when quantity > 1"
+    },
+    {
+      "confidence": 0.9,
+      "created_at": "2026-06-06T05:40:21Z",
+      "environment": {
+        "app_base_url": "http://127.0.0.1:8765",
+        "browser": "chromium",
+        "viewport": "1280x800"
+      },
+      "evidence": {
+        "artifacts": [
+          {
+            "artifact_id": "art_f468de8e49",
+            "created_at": "2026-06-06T05:40:11Z",
+            "metadata": {
+              "viewport": "configured"
+            },
+            "mime_type": "image/png",
+            "schema_version": "1.0.0",
+            "sha256": null,
+            "type": "screenshot",
+            "uri": "/Users/donavanyieh/Desktop/hackathon_prod/dywa_prod/DYWA_prod/artifacts/run_9660eee3/personas/persona_impatient_buyer/screen_013.png"
+          },
+          {
+            "artifact_id": "art_06779d124f",
+            "created_at": "2026-06-06T05:40:21Z",
+            "metadata": {
+              "kind": "persona_decision",
+              "model_name": "gpt-5"
+            },
+            "mime_type": "application/json",
+            "schema_version": "1.0.0",
+            "sha256": null,
+            "type": "text_log",
+            "uri": "/Users/donavanyieh/Desktop/hackathon_prod/dywa_prod/DYWA_prod/artifacts/run_9660eee3/personas/persona_impatient_buyer/decision_013.json"
+          }
+        ],
+        "transcript_event_ids": [
+          "evt_8e4f62104c",
+          "evt_d047fae3eb",
+          "evt_277da0c769",
+          "evt_cc6c486609",
+          "evt_5680d7934e",
+          "evt_29f45dafa5",
+          "evt_7c805a85ba",
+          "evt_c2db652dbf",
+          "evt_54c2b22607",
+          "evt_d5164ab27c",
+          "evt_fbd31bcebf",
+          "evt_e2e328ce23",
+          "evt_40b470ead2",
+          "evt_f68d18a68c"
+        ]
+      },
+      "expected_behavior": "Checkout should be disabled or should display an error when the cart is empty, and no order should be created or charged.",
+      "metadata": {},
+      "observed_behavior": "With the cart showing 'Your cart is empty.', clicking the Checkout button creates an order (e.g., 'Order ord_db6cc37d') and displays 'Total charged: $12.50'.",
+      "persona_id": "persona_impatient_buyer",
+      "report_id": "bugrep_cf38ecfbf6",
+      "reproduction_steps": [
+        "Open the Demo Shop home page.",
+        "Ensure the Cart panel shows 'Your cart is empty.'",
+        "Click the 'Checkout' button.",
+        "Observe that an order card appears with an order ID and a non-zero 'Total charged' despite no items in the cart."
+      ],
+      "run_id": "run_9660eee3",
+      "schema_version": "1.0.0",
+      "severity_guess": "critical",
+      "title": "Checkout succeeds and charges even when cart is empty"
+    },
+    {
+      "confidence": 0.9,
+      "created_at": "2026-06-06T05:40:59Z",
+      "environment": {
+        "app_base_url": "http://127.0.0.1:8765",
+        "browser": "chromium",
+        "viewport": "390x844"
+      },
+      "evidence": {
+        "artifacts": [
+          {
+            "artifact_id": "art_5621edfc90",
+            "created_at": "2026-06-06T05:40:41Z",
+            "metadata": {
+              "viewport": "configured"
+            },
+            "mime_type": "image/png",
+            "schema_version": "1.0.0",
+            "sha256": null,
+            "type": "screenshot",
+            "uri": "/Users/donavanyieh/Desktop/hackathon_prod/dywa_prod/DYWA_prod/artifacts/run_9660eee3/personas/persona_edge_case_explorer/screen_002.png"
+          },
+          {
+            "artifact_id": "art_51e9d517ab",
+            "created_at": "2026-06-06T05:40:58Z",
+            "metadata": {
+              "kind": "persona_decision",
+              "model_name": "gpt-5"
+            },
+            "mime_type": "application/json",
+            "schema_version": "1.0.0",
+            "sha256": null,
+            "type": "text_log",
+            "uri": "/Users/donavanyieh/Desktop/hackathon_prod/dywa_prod/DYWA_prod/artifacts/run_9660eee3/personas/persona_edge_case_explorer/decision_002.json"
+          }
+        ],
+        "transcript_event_ids": [
+          "evt_068edf88af",
+          "evt_d7f909a1d6",
+          "evt_446b5d59e8"
+        ]
+      },
+      "expected_behavior": "The cart Total should reflect the sum of all line-item subtotals. With quantity 2 at $12.50 each, the Total should be $25.00.",
+      "metadata": {},
+      "observed_behavior": "When quantity is set to 2, the line item shows Subtotal $25.00, but the cart Total remains $12.50.",
+      "persona_id": "persona_edge_case_explorer",
+      "report_id": "bugrep_68af269c56",
+      "reproduction_steps": [
+        "Open the Demo Shop home page.",
+        "Click 'Add to cart' on 'Blue Shockproof Phone Case'.",
+        "In the cart, change Quantity to 2.",
+        "Observe that the line item shows Subtotal $25.00 but the cart Total remains $12.50."
+      ],
+      "run_id": "run_9660eee3",
+      "schema_version": "1.0.0",
+      "severity_guess": "high",
+      "title": "Cart Total does not update with quantity; shows unit price instead of subtotal"
+    }
+  ],
+  "report": {
+    "confidence": 0.86,
+    "created_at": "2026-06-06T05:38:26Z",
+    "environment": {
+      "app_base_url": "http://127.0.0.1:8765",
+      "browser": "chromium",
+      "viewport": "1440x900"
+    },
+    "evidence": {
+      "artifacts": [
+        {
+          "artifact_id": "art_43e6c39241",
+          "created_at": "2026-06-06T05:38:10Z",
+          "metadata": {
+            "viewport": "configured"
+          },
+          "mime_type": "image/png",
+          "schema_version": "1.0.0",
+          "sha256": null,
+          "type": "screenshot",
+          "uri": "/Users/donavanyieh/Desktop/hackathon_prod/dywa_prod/DYWA_prod/artifacts/run_9660eee3/personas/persona_price_auditor/screen_002.png"
+        },
+        {
+          "artifact_id": "art_1daf51bb5b",
+          "created_at": "2026-06-06T05:38:26Z",
+          "metadata": {
+            "kind": "persona_decision",
+            "model_name": "gpt-5"
+          },
+          "mime_type": "application/json",
+          "schema_version": "1.0.0",
+          "sha256": null,
+          "type": "text_log",
+          "uri": "/Users/donavanyieh/Desktop/hackathon_prod/dywa_prod/DYWA_prod/artifacts/run_9660eee3/personas/persona_price_auditor/decision_002.json"
+        }
+      ],
+      "transcript_event_ids": [
+        "evt_9c8e72e7f9",
+        "evt_f303000abd",
+        "evt_89619b830c"
+      ]
+    },
+    "expected_behavior": "Cart Total should equal the sum of item subtotals (here, $25.00) and update when quantity changes.",
+    "metadata": {},
+    "observed_behavior": "With quantity set to 2, the item subtotal is $25.00, but the cart Total still displays $12.50.",
+    "persona_id": "persona_price_auditor",
+    "report_id": "bugrep_4d94daeca5",
+    "reproduction_steps": [
+      "Open the Demo Shop home page.",
+      "Click 'Add to cart' for Blue Shockproof Phone Case.",
+      "Change the cart quantity to 2.",
+      "Observe that Subtotal updates to $25.00 while Total remains $12.50."
+    ],
+    "run_id": "run_9660eee3",
+    "schema_version": "1.0.0",
+    "severity_guess": "high",
+    "title": "Cart total does not update with quantity; shows unit price instead of subtotal"
+  },
+  "run_id": "run_9660eee3",
+  "schema_version": "1.0.0",
+  "transcript_events": [
+    "evt_9c8e72e7f9",
+    "evt_f303000abd",
+    "evt_89619b830c"
+  ]
+}

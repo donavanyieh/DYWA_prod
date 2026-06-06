@@ -1,0 +1,58 @@
+{
+  "confidence": 0.9,
+  "created_at": "2026-06-06T05:40:59Z",
+  "environment": {
+    "app_base_url": "http://127.0.0.1:8765",
+    "browser": "chromium",
+    "viewport": "390x844"
+  },
+  "evidence": {
+    "artifacts": [
+      {
+        "artifact_id": "art_5621edfc90",
+        "created_at": "2026-06-06T05:40:41Z",
+        "metadata": {
+          "viewport": "configured"
+        },
+        "mime_type": "image/png",
+        "schema_version": "1.0.0",
+        "sha256": null,
+        "type": "screenshot",
+        "uri": "/Users/donavanyieh/Desktop/hackathon_prod/dywa_prod/DYWA_prod/artifacts/run_9660eee3/personas/persona_edge_case_explorer/screen_002.png"
+      },
+      {
+        "artifact_id": "art_51e9d517ab",
+        "created_at": "2026-06-06T05:40:58Z",
+        "metadata": {
+          "kind": "persona_decision",
+          "model_name": "gpt-5"
+        },
+        "mime_type": "application/json",
+        "schema_version": "1.0.0",
+        "sha256": null,
+        "type": "text_log",
+        "uri": "/Users/donavanyieh/Desktop/hackathon_prod/dywa_prod/DYWA_prod/artifacts/run_9660eee3/personas/persona_edge_case_explorer/decision_002.json"
+      }
+    ],
+    "transcript_event_ids": [
+      "evt_068edf88af",
+      "evt_d7f909a1d6",
+      "evt_446b5d59e8"
+    ]
+  },
+  "expected_behavior": "The cart Total should reflect the sum of all line-item subtotals. With quantity 2 at $12.50 each, the Total should be $25.00.",
+  "metadata": {},
+  "observed_behavior": "When quantity is set to 2, the line item shows Subtotal $25.00, but the cart Total remains $12.50.",
+  "persona_id": "persona_edge_case_explorer",
+  "report_id": "bugrep_68af269c56",
+  "reproduction_steps": [
+    "Open the Demo Shop home page.",
+    "Click 'Add to cart' on 'Blue Shockproof Phone Case'.",
+    "In the cart, change Quantity to 2.",
+    "Observe that the line item shows Subtotal $25.00 but the cart Total remains $12.50."
+  ],
+  "run_id": "run_9660eee3",
+  "schema_version": "1.0.0",
+  "severity_guess": "high",
+  "title": "Cart Total does not update with quantity; shows unit price instead of subtotal"
+}
