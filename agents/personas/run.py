@@ -142,6 +142,7 @@ def ask_for_action(
     page_state: dict[str, object],
     screenshot: ArtifactRefV1,
     history: list[str],
+    validation_feedback: list[str] | None = None,
 ) -> dict[str, object]:
     instructions = (
         "You are an autonomous ecommerce user persona. Choose the next browser action "
@@ -162,6 +163,7 @@ def ask_for_action(
             },
             "page_state": page_state,
             "recent_history": history[-8:],
+            "validation_feedback": validation_feedback or [],
             "allowed_response_shape": {
                 "action": "click_button | fill_input | report_bug | finish",
                 "observation_summary": "what you see now",
@@ -192,6 +194,108 @@ def ask_for_action(
         prompt=prompt,
         image_paths=[Path(screenshot.uri)],
     )
+
+
+def validate_action(action: dict[str, object], page_state: dict[str, object]) -> list[str]:
+    errors = []
+    action_name = str(action.get("action", ""))
+    if action_name not in {"click_button", "fill_input", "report_bug", "finish"}:
+        return [f"Unsupported action '{action_name}'. Use click_button, fill_input, report_bug, or finish."]
+
+    if action_name == "click_button":
+        button_text = str(action.get("button_text", "")).strip()
+        if not button_text:
+            errors.append("click_button requires button_text matching one visible button.")
+        elif button_text not in [str(button) for button in page_state.get("buttons", [])]:
+            errors.append(
+                f"button_text '{button_text}' is not one of the visible buttons: {page_state.get('buttons', [])}."
+            )
+
+    if action_name == "fill_input":
+        inputs = page_state.get("inputs", [])
+        if "input_index" not in action:
+            errors.append("fill_input requires input_index.")
+        else:
+            try:
+                input_index = int(action["input_index"])
+                if input_index < 0 or input_index >= len(inputs):
+                    errors.append(f"input_index {input_index} is outside visible input range 0..{len(inputs) - 1}.")
+            except (TypeError, ValueError):
+                errors.append("input_index must be an integer.")
+        if "value" not in action:
+            errors.append("fill_input requires value.")
+
+    if action_name == "report_bug":
+        report = action.get("bug_report")
+        if not isinstance(report, dict):
+            errors.append("report_bug requires bug_report object.")
+        else:
+            for field in (
+                "title",
+                "severity_guess",
+                "confidence",
+                "observed_behavior",
+                "expected_behavior",
+                "reproduction_steps",
+            ):
+                if field not in report:
+                    errors.append(f"bug_report requires {field}.")
+
+    if action_name == "finish" and "stop_reason" not in action:
+        errors.append("finish requires stop_reason.")
+
+    return errors
+
+
+def ask_for_valid_action(
+    *,
+    client: OpenAIJsonClient,
+    config: PersonaConfigV1,
+    page_state: dict[str, object],
+    screenshot: ArtifactRefV1,
+    history: list[str],
+    max_attempts: int = 3,
+) -> dict[str, object]:
+    validation_feedback: list[str] = []
+    for _attempt in range(max_attempts):
+        try:
+            action = ask_for_action(
+                client=client,
+                config=config,
+                page_state=page_state,
+                screenshot=screenshot,
+                history=history,
+                validation_feedback=validation_feedback,
+            )
+        except Exception as exc:
+            validation_feedback = [
+                "Previous response could not be parsed as valid JSON. "
+                "Return exactly one complete JSON object matching the allowed response shape.",
+                f"Parser error: {exc.__class__.__name__}: {exc}",
+            ]
+            log(
+                f"Persona {config.persona_id}: model response failed parsing: "
+                f"{exc.__class__.__name__}: {exc}"
+            )
+            continue
+        errors = validate_action(action, page_state)
+        if not errors:
+            return action
+        validation_feedback = errors
+        log(
+            f"Persona {config.persona_id}: model action failed validation: "
+            + " ".join(errors)
+        )
+
+    return {
+        "action": "finish",
+        "observation_summary": "Model did not return a valid action after retries.",
+        "reason": "Action validation failed repeatedly.",
+        "reasoning": "The model response omitted required fields or referenced unavailable controls.",
+        "consistency_checks": [],
+        "confidence": 0,
+        "stop_reason": "no_useful_action",
+    }
 
 
 def execute_action(page: Page, action: dict[str, object]) -> str:
@@ -291,7 +395,7 @@ def run_persona(config: PersonaConfigV1) -> dict[str, object]:
             screenshot = screenshot_artifact(page, artifact_dir, index)
             page_state = describe_page(page)
             log(f"Persona {config.persona_id}: asking model for next action.")
-            action = ask_for_action(
+            action = ask_for_valid_action(
                 client=client,
                 config=config,
                 page_state=page_state,

@@ -285,7 +285,12 @@ class VerifierConfigV1(StrictModel):
 
 
 class FixingConfigV1(StrictModel):
-    model: ModelConfigV1 = Field(default_factory=lambda: ModelConfigV1(reasoning_effort="high"))
+    model: ModelConfigV1 = Field(
+        default_factory=lambda: ModelConfigV1(
+            model_name="gpt-5.3-codex",
+            reasoning_effort="high",
+        )
+    )
 
 
 class RunConfigV1(StrictModel):
