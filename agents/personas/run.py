@@ -334,6 +334,7 @@ def ask_for_action(
     page_state: dict[str, object],
     screenshot: ArtifactRefV1,
     history: list[str],
+    memory: dict[str, Any] | None = None,
     validation_feedback: list[str] | None = None,
 ) -> dict[str, object]:
     instructions_parts = [
@@ -449,6 +450,7 @@ def ask_for_valid_action(
     page_state: dict[str, object],
     screenshot: ArtifactRefV1,
     history: list[str],
+    memory: dict[str, Any] | None = None,
     max_attempts: int = 3,
 ) -> dict[str, object]:
     validation_feedback: list[str] = []
@@ -460,6 +462,7 @@ def ask_for_valid_action(
                 page_state=page_state,
                 screenshot=screenshot,
                 history=history,
+                memory=memory,
                 validation_feedback=validation_feedback,
             )
         except Exception as exc:

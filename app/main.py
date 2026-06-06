@@ -631,7 +631,7 @@ def index() -> str:
 
       async function api(path, options = {}) {
         const response = await fetch(path, {
-          headers: { \"Content-Type\": \"application/json\" },
+          headers: { "Content-Type": "application/json" },
           ...options
         });
         const data = await response.json().catch(() => ({}));
@@ -806,8 +806,7 @@ def index() -> str:
         const startGroupBuy = params.get("startGroupBuy") === "true";
         if (!productId) return showError("Checkout requires a product.");
         const product = await api(`/api/products/${productId}`);
-        const displayUnitPrice = product.normalPrice;
-        const payableUnitPrice = purchaseType === "GROUP_BUY" ? product.groupBuyPrice : product.normalPrice;
+        const unitPrice = purchaseType === "GROUP_BUY" ? product.groupBuyPrice : product.normalPrice;
         const discount = purchaseType === "GROUP_BUY" ? product.normalPrice - product.groupBuyPrice : 0;
         const title = startGroupBuy ? "Start Group Buy Checkout" : purchaseType === "GROUP_BUY" ? "Join Group Buy Checkout" : "Checkout";
         page(`
@@ -817,7 +816,7 @@ def index() -> str:
               <p class="muted">Mock delivery to 123 Demo Street, Singapore.</p>
               <div class="field">
                 <label>Quantity</label>
-                <input id="quantity" type="text" inputmode="numeric" pattern="[1-9][0-9]*" value="1" data-testid="quantity-input" oninput="sanitizeQuantity(); updateCheckoutSummary(${payableUnitPrice}, ${discount})">
+                <input id="quantity" type="text" value="1" data-testid="quantity-input" oninput="updateCheckoutSummary(${unitPrice}, ${discount})">
               </div>
               <div class="actions">
                 <button type="button" onclick="placeOrder('${product.id}', '${purchaseType}', '${groupBuyId || ""}', ${startGroupBuy})" data-testid="place-order-button">Place Order</button>
@@ -828,40 +827,17 @@ def index() -> str:
               <h2>Order Summary</h2>
               <div class="summary-row"><span>Product</span><strong>${product.name}</strong></div>
               <div class="summary-row"><span>Purchase type</span><strong data-testid="purchase-type">${purchaseType}</strong></div>
-              <div class="summary-row"><span>Unit price</span><strong>${money.format(displayUnitPrice)}</strong></div>
+              <div class="summary-row"><span>Unit price</span><strong>${money.format(unitPrice)}</strong></div>
               <div class="summary-row"><span>Discount</span><strong id="discount">${money.format(discount)}</strong></div>
-              <div class="summary-row total"><span>Payable</span><span id="payable" data-testid="final-payable">${money.format(payableUnitPrice)}</span></div>
+              <div class="summary-row total"><span>Payable</span><span id="payable" data-testid="final-payable">${money.format(unitPrice)}</span></div>
             </article>
           </section>
         `);
       }
 
-      function sanitizeQuantity() {
-        const input = document.querySelector("#quantity");
-        input.value = input.value.replace(/[^0-9]/g, "").replace(/^0+/, "");
-      }
-
-      function getValidQuantity() {
-        const input = document.querySelector("#quantity");
-        sanitizeQuantity();
-        const quantity = Number(input.value);
-        if (!Number.isInteger(quantity) || quantity < 1) {
-          throw new Error("Quantity must be a positive whole number.");
-        }
-        return quantity;
-      }
-
-      function updateCheckoutSummary(payableUnitPrice, discount) {
-        let quantity = 1;
-        try {
-          quantity = getValidQuantity();
-        } catch (_error) {
-          document.querySelector("#discount").textContent = money.format(0);
-          document.querySelector("#payable").textContent = money.format(0);
-          return;
-        }
-        document.querySelector("#discount").textContent = money.format(discount * quantity);
-        document.querySelector("#payable").textContent = money.format(payableUnitPrice * quantity);
+      function updateCheckoutSummary(unitPrice, discount) {
+        document.querySelector("#discount").textContent = money.format(discount);
+        document.querySelector("#payable").textContent = money.format(unitPrice);
       }
 
       async function placeOrder(productId, purchaseType, groupBuyId, startGroupBuy) {
