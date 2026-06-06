@@ -40,9 +40,17 @@ def read_expected_sources(paths: list[Path]) -> dict[str, str]:
     return sources
 
 
+def nullable_model_value(value: Any) -> Any:
+    if value is None:
+        return None
+    if isinstance(value, str) and value.strip().lower() in {"", "null", "none"}:
+        return None
+    return value
+
+
 def decision_from_payload(report: BugReportV1, payload: dict[str, Any]) -> VerifierDecisionV1:
     classification = VerifierClassification(str(payload["classification"]))
-    canonical_bug_id = payload.get("canonical_bug_id")
+    canonical_bug_id = nullable_model_value(payload.get("canonical_bug_id"))
     if classification == VerifierClassification.CONFIRMED and not canonical_bug_id:
         canonical_bug_id = slugify(report.title)
 
@@ -55,8 +63,8 @@ def decision_from_payload(report: BugReportV1, payload: dict[str, Any]) -> Verif
         classification=classification,
         confidence=float(payload["confidence"]),
         canonical_bug_id=canonical_bug_id,
-        duplicate_of=payload.get("duplicate_of"),
-        severity=payload.get("severity"),
+        duplicate_of=nullable_model_value(payload.get("duplicate_of")),
+        severity=nullable_model_value(payload.get("severity")),
         reasoning_summary=str(payload["reasoning_summary"]),
         required_next_action=required_next_action,
         fix_task=None,

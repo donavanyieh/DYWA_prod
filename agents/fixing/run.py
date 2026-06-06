@@ -3,11 +3,13 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import re
 import shutil
 import shlex
 import subprocess
 import sys
+import tempfile
 import time
 from pathlib import Path
 from uuid import uuid4
@@ -31,9 +33,9 @@ from shared.time import utc_now
 
 
 CODEX_FIXER_MODEL = "gpt-5.3-codex"
-CODEX_FIXER_FALLBACK_MODELS = ("gpt-5-codex",)
-CODEX_UNSUPPORTED_CHATGPT_MODEL_MARKER = "not supported when using Codex with a ChatGPT account"
+OPENAI_API_KEY_ENV_NAMES = ("OPENAI_API_KEY", "OPENAIKEY", "OPENAI_KEY")
 MAX_FIX_ATTEMPTS = 3
+CODEX_API_KEY_LOGIN_TIMEOUT_SECONDS = 30
 CODEX_EXEC_TIMEOUT_SECONDS = 600
 TEST_TIMEOUT_SECONDS = 60
 CONTRACT_VALIDATION_TIMEOUT_SECONDS = 30
@@ -300,26 +302,68 @@ def resolve_codex_executable() -> str:
     )
 
 
+def get_openai_api_key() -> tuple[str, str]:
+    for env_name in OPENAI_API_KEY_ENV_NAMES:
+        value = os.environ.get(env_name, "").strip()
+        if value:
+            return value, env_name
+    raise RuntimeError(
+        "Fixing agent requires an OpenAI API key in OPENAI_API_KEY or OPENAIKEY for Codex exec."
+    )
+
+
+def build_codex_api_key_env(codex_home: Path, api_key: str) -> dict[str, str]:
+    env = os.environ.copy()
+    env["CODEX_HOME"] = str(codex_home)
+    env["OPENAI_API_KEY"] = api_key
+    return env
+
+
+def login_codex_with_api_key(
+    *,
+    codex_executable: str,
+    codex_home: Path,
+    sandbox_path: Path,
+    api_key: str,
+) -> None:
+    codex_home.mkdir(parents=True, exist_ok=True)
+    sandbox_config_path = sandbox_path.as_posix().replace("\\", "\\\\").replace("'", "\\'")
+    (codex_home / "config.toml").write_text(
+        "\n".join(
+            [
+                'preferred_auth_method = "apikey"',
+                'approval_policy = "never"',
+                'sandbox_mode = "workspace-write"',
+                "",
+                f"[projects.'{sandbox_config_path}']",
+                'trust_level = "trusted"',
+                "",
+            ]
+        )
+    )
+    completed = subprocess.run(
+        [codex_executable, "login", "--with-api-key"],
+        input=api_key + "\n",
+        text=True,
+        capture_output=True,
+        check=False,
+        timeout=CODEX_API_KEY_LOGIN_TIMEOUT_SECONDS,
+        env=build_codex_api_key_env(codex_home, api_key),
+    )
+    if completed.returncode != 0:
+        output = completed.stdout + completed.stderr
+        raise RuntimeError(f"codex API-key login failed: {truncate_text(output, 1200)}")
+
+
 def codex_model_attempts(model: ModelConfigV1) -> list[ModelConfigV1]:
-    model_names = [model.model_name]
-    if model.model_name == CODEX_FIXER_MODEL:
-        model_names.extend(name for name in CODEX_FIXER_FALLBACK_MODELS if name not in model_names)
     return [
         ModelConfigV1(
             provider=model.provider,
-            model_name=model_name,
+            model_name=model.model_name,
             mode=model.mode,
             reasoning_effort=model.reasoning_effort,
         )
-        for model_name in model_names
     ]
-
-
-def is_chatgpt_account_model_unsupported(output: str) -> bool:
-    return (
-        CODEX_UNSUPPORTED_CHATGPT_MODEL_MARKER in output
-        or ("invalid_request_error" in output and "model is not supported" in output)
-    )
 
 
 def safe_model_filename(model_name: str) -> str:
@@ -357,53 +401,111 @@ def run_codex_exec(
 ) -> tuple[list[str], str, ArtifactRefV1]:
     prompt = build_codex_prompt(task)
     codex_executable = resolve_codex_executable()
+    api_key, api_key_env_name = get_openai_api_key()
     model_attempts = codex_model_attempts(model)
     before = snapshot_promotable_files(sandbox_path)
 
-    for model_attempt, active_model in enumerate(model_attempts, start=1):
-        model_suffix = safe_model_filename(active_model.model_name)
-        transcript_path = output_dir / f"codex_exec_events_{model_attempt:02d}_{model_suffix}.jsonl"
-        last_message_path = output_dir / f"codex_last_message_{model_attempt:02d}_{model_suffix}.json"
-        command = build_codex_command(
+    with tempfile.TemporaryDirectory(prefix="dywa-codex-api-") as codex_home_raw:
+        codex_home = Path(codex_home_raw)
+        login_codex_with_api_key(
             codex_executable=codex_executable,
+            codex_home=codex_home,
             sandbox_path=sandbox_path,
-            model=active_model,
-            last_message_path=last_message_path,
+            api_key=api_key,
         )
+        codex_env = build_codex_api_key_env(codex_home, api_key)
 
-        started = time.monotonic()
         record_event(
             transcript_path=output_dir / "transcript.jsonl",
             task=task,
-            event_type="codex_exec_started",
-            status=EventStatus.STARTED,
-            summary=f"Started real Codex exec with {active_model.model_name}.",
+            event_type="codex_api_key_auth_prepared",
+            status=EventStatus.COMPLETED,
+            summary="Prepared temporary API-key Codex auth for fixer subprocess.",
             duration_ms=0,
             payload={
-                "command": command,
-                "timeout_seconds": CODEX_EXEC_TIMEOUT_SECONDS,
-                "sandbox_path": str(sandbox_path),
-                "requested_model_name": model.model_name,
-                "model_name": active_model.model_name,
-                "model_attempt": model_attempt,
-                "model_attempts_total": len(model_attempts),
+                "api_key_env_name": api_key_env_name,
+                "codex_home": str(codex_home),
+                "codex_home_cleanup": "temporary_directory",
             },
         )
 
-        try:
-            completed = subprocess.run(
-                command,
-                cwd=sandbox_path,
-                input=prompt,
-                text=True,
-                capture_output=True,
-                check=False,
-                timeout=CODEX_EXEC_TIMEOUT_SECONDS,
+        for model_attempt, active_model in enumerate(model_attempts, start=1):
+            model_suffix = safe_model_filename(active_model.model_name)
+            transcript_path = output_dir / f"codex_exec_events_{model_attempt:02d}_{model_suffix}.jsonl"
+            last_message_path = output_dir / f"codex_last_message_{model_attempt:02d}_{model_suffix}.json"
+            command = build_codex_command(
+                codex_executable=codex_executable,
+                sandbox_path=sandbox_path,
+                model=active_model,
+                last_message_path=last_message_path,
             )
-            output = completed.stdout + completed.stderr
-            transcript_path.write_text(output)
-            duration_ms = int((time.monotonic() - started) * 1000)
-            if completed.returncode != 0:
+
+            started = time.monotonic()
+            record_event(
+                transcript_path=output_dir / "transcript.jsonl",
+                task=task,
+                event_type="codex_exec_started",
+                status=EventStatus.STARTED,
+                summary=f"Started real Codex exec with {active_model.model_name} using API-key auth.",
+                duration_ms=0,
+                payload={
+                    "command": command,
+                    "timeout_seconds": CODEX_EXEC_TIMEOUT_SECONDS,
+                    "sandbox_path": str(sandbox_path),
+                    "requested_model_name": model.model_name,
+                    "model_name": active_model.model_name,
+                    "model_attempt": model_attempt,
+                    "model_attempts_total": len(model_attempts),
+                    "auth_mode": "api_key",
+                    "api_key_env_name": api_key_env_name,
+                },
+            )
+
+            try:
+                completed = subprocess.run(
+                    command,
+                    cwd=sandbox_path,
+                    input=prompt,
+                    text=True,
+                    capture_output=True,
+                    check=False,
+                    timeout=CODEX_EXEC_TIMEOUT_SECONDS,
+                    env=codex_env,
+                )
+                output = completed.stdout + completed.stderr
+                transcript_path.write_text(output)
+                duration_ms = int((time.monotonic() - started) * 1000)
+                if completed.returncode != 0:
+                    artifact = codex_transcript_artifact(
+                        transcript_path,
+                        active_model,
+                        duration_ms,
+                        model_attempt,
+                    )
+                    message = f"codex exec exited with {completed.returncode}: {truncate_text(output, 1200)}"
+                    record_event(
+                        transcript_path=output_dir / "transcript.jsonl",
+                        task=task,
+                        event_type="codex_exec_failed",
+                        status=EventStatus.FAILED,
+                        summary=message,
+                        duration_ms=duration_ms,
+                        artifacts=[artifact],
+                        error=ErrorV1(
+                            code="codex_exec_failed",
+                            message=message,
+                            recoverable=model_attempt < len(model_attempts),
+                            details={"model_name": active_model.model_name, "auth_mode": "api_key"},
+                        ),
+                    )
+                    raise RuntimeError(message)
+            except subprocess.TimeoutExpired as exc:
+                output = (
+                    f"Codex exec timed out after {CODEX_EXEC_TIMEOUT_SECONDS} seconds.\n"
+                    f"{exc.stdout or ''}\n{exc.stderr or ''}"
+                )
+                transcript_path.write_text(output)
+                duration_ms = int((time.monotonic() - started) * 1000)
                 artifact = codex_transcript_artifact(
                     transcript_path,
                     active_model,
@@ -440,23 +542,21 @@ def run_codex_exec(
                     task=task,
                     event_type="codex_exec_failed",
                     status=EventStatus.FAILED,
-                    summary=message,
+                    summary=f"Codex exec timed out with {active_model.model_name}.",
                     duration_ms=duration_ms,
                     artifacts=[artifact],
                     error=ErrorV1(
-                        code="codex_exec_failed",
-                        message=message,
-                        recoverable=model_attempt < len(model_attempts),
-                        details={"model_name": active_model.model_name},
+                        code="codex_exec_timeout",
+                        message=truncate_text(output, 1200),
+                        recoverable=False,
+                        details={"model_name": active_model.model_name, "auth_mode": "api_key"},
                     ),
                 )
-                raise RuntimeError(message)
-        except subprocess.TimeoutExpired as exc:
-            output = (
-                f"Codex exec timed out after {CODEX_EXEC_TIMEOUT_SECONDS} seconds.\n"
-                f"{exc.stdout or ''}\n{exc.stderr or ''}"
-            )
-            transcript_path.write_text(output)
+                raise TimeoutError(output) from exc
+
+            changed_files = detect_changed_files(sandbox_path, before)
+            final_message = parse_codex_last_message(last_message_path)
+            summary = str(final_message.get("summary") or "Codex completed the fix attempt.")
             duration_ms = int((time.monotonic() - started) * 1000)
             artifact = codex_transcript_artifact(
                 transcript_path,
@@ -467,47 +567,22 @@ def run_codex_exec(
             record_event(
                 transcript_path=output_dir / "transcript.jsonl",
                 task=task,
-                event_type="codex_exec_failed",
-                status=EventStatus.FAILED,
-                summary=f"Codex exec timed out with {active_model.model_name}.",
+                event_type="codex_exec_completed",
+                status=EventStatus.COMPLETED,
+                summary=summary,
                 duration_ms=duration_ms,
                 artifacts=[artifact],
-                error=ErrorV1(
-                    code="codex_exec_timeout",
-                    message=truncate_text(output, 1200),
-                    recoverable=False,
-                    details={"model_name": active_model.model_name},
-                ),
+                payload={
+                    "changed_files": changed_files,
+                    "last_message": final_message,
+                    "requested_model_name": model.model_name,
+                    "model_name": active_model.model_name,
+                    "model_attempt": model_attempt,
+                    "auth_mode": "api_key",
+                    "api_key_env_name": api_key_env_name,
+                },
             )
-            raise TimeoutError(output) from exc
-
-        changed_files = detect_changed_files(sandbox_path, before)
-        final_message = parse_codex_last_message(last_message_path)
-        summary = str(final_message.get("summary") or "Codex completed the fix attempt.")
-        duration_ms = int((time.monotonic() - started) * 1000)
-        artifact = codex_transcript_artifact(
-            transcript_path,
-            active_model,
-            duration_ms,
-            model_attempt,
-        )
-        record_event(
-            transcript_path=output_dir / "transcript.jsonl",
-            task=task,
-            event_type="codex_exec_completed",
-            status=EventStatus.COMPLETED,
-            summary=summary,
-            duration_ms=duration_ms,
-            artifacts=[artifact],
-            payload={
-                "changed_files": changed_files,
-                "last_message": final_message,
-                "requested_model_name": model.model_name,
-                "model_name": active_model.model_name,
-                "model_attempt": model_attempt,
-            },
-        )
-        return changed_files, summary, artifact
+            return changed_files, summary, artifact
 
     raise RuntimeError("codex exec did not run any model attempts")
 
@@ -522,8 +597,15 @@ def build_codex_command(
     return [
         codex_executable,
         "exec",
+        "-c",
+        'preferred_auth_method="apikey"',
+        "-c",
+        'approval_policy="never"',
+        "-c",
+        'sandbox_mode="workspace-write"',
         "--json",
         "--skip-git-repo-check",
+        "--ignore-rules",
         "-C",
         str(sandbox_path),
         "-m",
